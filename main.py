@@ -3,6 +3,7 @@ import csv
 import matplotlib.pyplot as plt
 import numpy as np
 from sklearn import svm
+from sklearn.metrics import mean_squared_error
 
 
 def main():
@@ -10,6 +11,7 @@ def main():
     x1 = []  # horizontal component (time)
     x2 = []  # noisy tremor output
     y = []  # intended movement (for training)
+    horizon = 5  # amount of data to be temporarily stored for feature creation
 
     # reads training csv file
     with open("tremor_training_data.csv", "r") as file:
@@ -25,12 +27,17 @@ def main():
     print("Y:\n", y)
 
     # calculates the change in tremor output
-    delta_x = find_delta(x1, x2)
+    delta_x = calc_delta(x1, x2)
     print("Change in X:\n", delta_x)
+
+    # calculates average of every [horizon] tremor outputs
+    avg_x = calc_average(x2, horizon)
+    print("Average X values:\n", avg_x)
 
     # applies feature scaling to training data
     x2 = normalise(x2)
     delta_x = normalise(delta_x)
+    avg_x = normalise(avg_x)
 
     # puts the features in 1 array
     X = np.vstack((x2, delta_x)).T
@@ -41,7 +48,7 @@ def main():
     predictions = regression.predict(X)
 
     # calculates and prints the percentage accuracy of the model
-    accuracy = calculate_accuracy(predictions, y)
+    accuracy = calc_accuracy(predictions, y)
     print("\nAccuracy: " + str(accuracy) + "%")
 
     # splits the graph into 2 subplots
@@ -57,6 +64,22 @@ def main():
     axes[1].legend()
     # displays the plots
     plt.show()
+
+
+# calculates the average of every [horizon] values in an array
+def calc_average(feature_list, horizon):
+    temp_array = []
+    avg_array = []
+    for i in range(len(feature_list)):
+        # for loop below puts the [horizon] previous values in an array (including current value)
+        for j in range(horizon):
+            # ensures that index does not go out of bounds
+            if i < j:
+                break
+            else:
+                temp_array.append(feature_list[i - j])
+        avg_array.append(sum(temp_array) / horizon)  # saves average of the [horizon] values to the array
+    return avg_array
 
 
 # normalises a list to be between -1 and 1
@@ -75,7 +98,7 @@ def find_highest(feature_list):
 
 
 # finds the change in tremor output
-def find_delta(x1, x2):
+def calc_delta(x1, x2):
     delta_x = []
     t = x1[1]  # gets the time increment (delta t)
     for i in range(len(x2)):
@@ -87,11 +110,11 @@ def find_delta(x1, x2):
     return delta_x
 
 
-# calculates how accurate the model is
-def calculate_accuracy(predicted, actual_output):
-    diff = np.absolute(np.subtract(predicted, actual_output))
-    average_diff = np.sum(diff) / len(actual_output)
-    return 100 - average_diff  # returns percentage accuracy
+# calculates the accuracy of the model using root mean squared error
+def calc_accuracy(predicted, actual_output):
+    rms_error = mean_squared_error(actual_output, predicted, squared=False)
+    rms_output = np.sqrt(sum(np.square(actual_output)))  # calculates the rms of the voluntary motion
+    return 100 * (1 - (rms_error / rms_output))
 
 
 if __name__ == '__main__':
