@@ -40,7 +40,7 @@ def main():
     avg_x = normalise(avg_x)
 
     # puts the features in 1 array
-    X = np.vstack((x2, delta_x)).T
+    X = np.vstack((x2, delta_x, avg_x)).T
 
     # SVM with rbf kernel
     regression = svm.SVR(kernel="rbf")
