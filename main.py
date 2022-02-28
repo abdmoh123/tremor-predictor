@@ -7,20 +7,16 @@ from sklearn.metrics import mean_squared_error
 
 
 def main():
-    # training data
-    x1 = []  # horizontal component (time)
-    x2 = []  # noisy tremor output
-    y = []  # intended movement (for training)
+    file_name = "tremor_training_data.csv"
+    # file_name = "real_tremor_data.csv"
     horizon = 5  # amount of data to be temporarily stored for feature creation
 
-    # reads training csv file
-    with open("tremor_training_data.csv", "r") as file:
-        reader = csv.reader(file)
-        for row in reader:
-            x1.append(float(row[0]))
-            y.append(float(row[1]))
-            x2.append(float(row[2]))
-
+    # training data
+    data = read_data(file_name, 0, 152, 1)  # simulated tremor data
+    # data = read_data(file_name, 200, 4000, 1)  # real tremor data
+    x1 = data[0]  # horizontal component (time)
+    x2 = data[1]  # noisy tremor output
+    y = data[2]  # intended movement (for training) - labels will always be the last column in array
     # prints training data in the console
     print("X1:\n", x1)
     print("X2:\n", x2)
@@ -43,11 +39,11 @@ def main():
     X = np.vstack((x2, delta_x, avg_x)).T
 
     # finds the optimum value for C (regularisation parameter)
-    C = optimise_reg(X, y)
-    print("Regularisation parameter C:", C)
+    # C = optimise_reg(X, y)
+    # print("Regularisation parameter C:", C)
 
     # SVM with rbf kernel
-    regression = svm.SVR(kernel="rbf", C=0.1)
+    regression = svm.SVR(kernel="rbf", C=3)  # optimum C value = 3
     regression.fit(X, y)
     predictions = regression.predict(X)
 
@@ -55,19 +51,63 @@ def main():
     accuracy = calc_accuracy(predictions, y)
     print("\nAccuracy: " + str(accuracy) + "%")
 
+    plot_model(data, predictions)
+
+
+# plots the regression model and inputted data on graphs
+def plot_model(data, predictions):
     # splits the graph into 2 subplots
     fig, axes = plt.subplots(2)
+
     # plots training data in graph
-    axes[0].plot(x1, x2, label="Training: Noisy tremor")
-    axes[0].plot(x1, y, label="Training: Intended movement")
+    axes[0].plot(data[0], data[1], label="Training: Noisy tremor")
+    axes[0].plot(data[0], data[2], label="Training: Intended movement")
     axes[0].legend()
     # plots SVM regression model
-    axes[1].scatter(x1, x2, s=5, label="Noisy data with tremor")
-    axes[1].scatter(x1, y, s=5, label="Intended movement without tremor")
-    axes[1].plot(x1, predictions, label="SVM regression model")
+    axes[1].scatter(data[0], data[1], s=5, label="Noisy data with tremor")
+    axes[1].scatter(data[0], data[2], s=5, label="Intended movement without tremor")
+    axes[1].plot(data[0], predictions, label="SVM regression model")
     axes[1].legend()
+
     # displays the plots
     plt.show()
+
+
+# reads data in a csv file and puts them in a 2D list
+def read_data(file_name, l_bound, u_bound, label_col):
+    # data will be separated in these lists
+    features = []
+    labels = []
+
+    with open(file_name, "r") as file:
+        reader = csv.reader(file)
+        rows = list(reader)
+
+        # ensures that the lower bound is smaller than the upper bound
+        if l_bound >= u_bound:
+            l_bound = u_bound - 1
+        # checks if bounds are valid (prevents index out of bounds error)
+        if (l_bound < 0) | (l_bound >= len(rows)):
+            l_bound = 0
+        if (u_bound > len(rows)) | (u_bound <= 0):
+            u_bound = len(rows)
+
+        # reads through the file and puts the data in the respective lists above
+        for i in range(l_bound, u_bound):
+            row = rows[i]
+            temp_features = []
+            # separates the labels from the features
+            for j in range(len(row)):
+                column = float(row[j])
+                if j == label_col:
+                    labels.append(column)
+                else:
+                    temp_features.append(column)
+            # lists all the features in a 2D list
+            features.append(temp_features)
+    # combines the 2 lists into a 2D numpy array with each feature/label being its own sub-array
+    features = np.vstack(features).T
+    return np.append(features, [labels], axis=0)
 
 
 # calculates the average of every [horizon] values in an array
