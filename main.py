@@ -42,8 +42,12 @@ def main():
     # puts the features in 1 array
     X = np.vstack((x2, delta_x, avg_x)).T
 
+    # finds the optimum value for C (regularisation parameter)
+    C = optimise_reg(X, y)
+    print("Regularisation parameter C:", C)
+
     # SVM with rbf kernel
-    regression = svm.SVR(kernel="rbf")
+    regression = svm.SVR(kernel="rbf", C=0.1)
     regression.fit(X, y)
     predictions = regression.predict(X)
 
@@ -115,6 +119,29 @@ def calc_accuracy(predicted, actual_output):
     rms_error = mean_squared_error(actual_output, predicted, squared=False)
     rms_output = np.sqrt(sum(np.square(actual_output)))  # calculates the rms of the voluntary motion
     return 100 * (1 - (rms_error / rms_output))
+
+
+# finds the optimum regularisation parameter value for an SVM regression model
+def optimise_reg(features, labels):
+    C = 0  # regularisation parameter
+    choices = [0.01, 0.03, 0.1, 0.3, 1, 3, 10, 30]  # regularisation parameter values to be tested
+    accuracy = 0  # initialised as 0 because it will only go up
+
+    # loops through all the C choices to find the most accurate result
+    for temp_C in choices:
+        # SVM with rbf kernel and a chosen regularisation parameter
+        regression = svm.SVR(kernel="rbf", C=temp_C)
+        regression.fit(features, labels)
+        predictions = regression.predict(features)
+
+        # calculates the percentage accuracy of the model
+        temp_accuracy = calc_accuracy(predictions, labels)
+
+        # C values are only updated if the new value gives a more accurate model
+        if temp_accuracy > accuracy:
+            accuracy = temp_accuracy
+            C = temp_C
+    return C
 
 
 if __name__ == '__main__':
