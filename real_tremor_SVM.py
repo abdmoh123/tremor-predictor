@@ -21,6 +21,7 @@ def main():
     y_label = filtered_data[2]  # intended movement in y axis
     z_motion = data[3]  # tremor in z axis
     z_label = filtered_data[3]  # intended movement in z axis
+    grip_force = data[4]  # grip force pushed on the device by the user
 
     # plots data (x axis)
     plot_model(t, x_motion, x_label)
@@ -74,11 +75,13 @@ def read_data(file_name, l_bound, u_bound, label_col):
     return np.append(features, [labels], axis=0)
 
 
+# filters the input data to estimate the intended movement
 def filter_data(data):
     time_period = 1 / 250
     nyquist = 1 / (2 * time_period)
     cut_off = 5 / nyquist
 
+    # zero phase filter is used to generate the labels (slow but very accurate)
     [b, a] = signal.butter(2, cut_off, btype='low')
     return signal.filtfilt(b, a, data)
 
