@@ -4,36 +4,70 @@ import matplotlib.pyplot as plt
 import numpy as np
 from sklearn import svm
 from sklearn.metrics import mean_squared_error
-from scipy import signal
 
 
 def main():
-    file_name = "real_tremor_data.csv"
+    file_name = "tremor_training_data.csv"
     horizon = 5  # amount of data to be temporarily stored for feature creation
 
-    # reads data into memory
-    data = read_data(file_name, 200, 4000, 4)  # real tremor data (t, x, y, z, grip force)
-    filtered_data = filter_data(data)  # filters data to get an estimate of intended movement
-    t = data[0]  # horizontal component (time)
-    x_motion = data[1]  # tremor in x axis
-    x_label = filtered_data[1]  # intended movement in x axis
-    y_motion = data[2]  # tremor in y axis
-    y_label = filtered_data[2]  # intended movement in y axis
-    z_motion = data[3]  # tremor in z axis
-    z_label = filtered_data[3]  # intended movement in z axis
+    # training data
+    data = read_data(file_name, 0, 152, 1)  # simulated tremor data
+    x1 = data[0]  # horizontal component (time)
+    x2 = data[1]  # noisy tremor output
+    y = data[2]  # intended movement (for training) - labels will always be the last column in array
+    # prints training data in the console
+    print("X1:\n", x1)
+    print("X2:\n", x2)
+    print("Y:\n", y)
 
-    # plots data (x axis)
-    plot_model(t, x_motion, x_label)
+    # calculates the change in tremor output
+    delta_x = calc_delta(x1, x2)
+    print("Change in X:\n", delta_x)
+
+    # calculates average of every [horizon] tremor outputs
+    avg_x = calc_average(x2, horizon)
+    print("Average X values:\n", avg_x)
+
+    # applies feature scaling to training data
+    x2 = normalise(x2)
+    delta_x = normalise(delta_x)
+    avg_x = normalise(avg_x)
+
+    # puts the features in 1 array
+    X = np.vstack((x2, delta_x, avg_x)).T
+
+    # finds the optimum value for C (regularisation parameter)
+    # C = optimise_reg(X, y)
+    # print("Regularisation parameter C:", C)
+
+    # SVM with rbf kernel
+    regression = svm.SVR(kernel="rbf", C=3)  # optimum C value = 3
+    regression.fit(X, y)
+    predictions = regression.predict(X)
+
+    # calculates and prints the percentage accuracy of the model
+    accuracy = calc_accuracy(predictions, y)
+    print("\nAccuracy: " + str(accuracy) + "%")
+
+    plot_model(data, predictions)
 
 
-# plots the real tremor data
-def plot_model(time, tremor, filtered_tremor):
-    # plots filtered (labels) and unfiltered data in graph
-    plt.plot(time, tremor, label="Training: Noisy tremor")
-    plt.plot(time, filtered_tremor, label="Training: Intended movement")
+# plots the regression model and inputted data on graphs
+def plot_model(data, predictions):
+    # splits the graph into 2 subplots
+    fig, axes = plt.subplots(2)
 
-    # displays graph (including legend)
-    plt.legend()
+    # plots training data in graph
+    axes[0].plot(data[0], data[1], label="Training: Noisy tremor")
+    axes[0].plot(data[0], data[2], label="Training: Intended movement")
+    axes[0].legend()
+    # plots SVM regression model
+    axes[1].scatter(data[0], data[1], s=5, label="Noisy data with tremor")
+    axes[1].scatter(data[0], data[2], s=5, label="Intended movement without tremor")
+    axes[1].plot(data[0], predictions, label="SVM regression model")
+    axes[1].legend()
+
+    # displays the plots
     plt.show()
 
 
@@ -72,15 +106,6 @@ def read_data(file_name, l_bound, u_bound, label_col):
     # combines the 2 lists into a 2D numpy array with each feature/label being its own sub-array
     features = np.vstack(features).T
     return np.append(features, [labels], axis=0)
-
-
-def filter_data(data):
-    time_period = 1 / 250
-    nyquist = 1 / (2 * time_period)
-    cut_off = 5 / nyquist
-
-    [b, a] = signal.butter(2, cut_off, btype='low')
-    return signal.filtfilt(b, a, data)
 
 
 # calculates the average of every [horizon] values in an array
