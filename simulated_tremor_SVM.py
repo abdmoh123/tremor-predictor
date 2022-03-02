@@ -50,25 +50,18 @@ def main():
     print("\nAccuracy: " + str(accuracy) + "%")
 
     # plots the data and model on a graph
-    plot_model(data, predictions)
+    plot_model(x1, data, predictions)
 
 
 # plots the regression model and inputted data on graphs
-def plot_model(data, predictions):
-    # splits the graph into 2 subplots
-    fig, axes = plt.subplots(2)
-
-    # plots training data in graph
-    axes[0].plot(data[0], data[1], label="Training: Noisy tremor")
-    axes[0].plot(data[0], data[2], label="Training: Intended movement")
-    axes[0].legend()
+def plot_model(time, data, predictions):
     # plots SVM regression model
-    axes[1].scatter(data[0], data[1], s=5, label="Noisy data with tremor")
-    axes[1].scatter(data[0], data[2], s=5, label="Intended movement without tremor")
-    axes[1].plot(data[0], predictions, label="SVM regression model")
-    axes[1].legend()
+    plt.plot(time, data[1], label="Noisy data with tremor")
+    plt.plot(time, data[2], label="Intended movement without tremor")
+    plt.plot(time, predictions, label="SVM regression model")
 
     # displays the plots
+    plt.legend()
     plt.show()
 
 
