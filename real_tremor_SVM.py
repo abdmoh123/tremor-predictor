@@ -17,25 +17,56 @@ def main():
     print("Filtered data:\n", filtered_data)
 
     t = data[0]  # horizontal component (time)
-    x_motion = data[1]  # tremor in x axis
-    x_label = filtered_data[1]  # intended movement in x axis
-    y_motion = data[2]  # tremor in y axis
-    y_label = filtered_data[2]  # intended movement in y axis
-    z_motion = data[3]  # tremor in z axis
-    z_label = filtered_data[3]  # intended movement in z axis
-    grip_force = data[4]  # grip force pushed on the device by the user
+    x_motion = normalise(data[1])  # tremor in x axis
+    x_label = filtered_data[1]  # intended motion in x axis
+    y_motion = normalise(data[2])  # tremor in y axis
+    y_label = filtered_data[2]  # intended motion in y axis
+    z_motion = normalise(data[3])  # tremor in z axis
+    z_label = filtered_data[3]  # intended motion in z axis
+    grip_force = normalise(data[4])  # grip force pushed on the device by the user
 
-    # plots data (x axis)
-    plot_model(t, x_motion, x_label)
+    # calculates the rate of change of 3D motion
+    delta_x = normalise(calc_delta(t, x_motion))
+    delta_y = normalise(calc_delta(t, y_motion))
+    delta_z = normalise(calc_delta(t, z_motion))
+
+    # calculates the average 3D motion
+    avg_x = normalise(calc_average(x_motion, horizon))
+    avg_y = normalise(calc_average(y_motion, horizon))
+    avg_z = normalise(calc_average(z_motion, horizon))
+
+    # combines the features into 1 array
+    features = np.vstack((x_motion, delta_x, avg_x)).T
+    print("Features:\n", features)
+
+    # finds the optimum value for C (regularisation parameter)
+    # C = optimise_reg(features, x_label)  # only required to run once (to find optimum value)
+    C = 10  # optimum C value = 10
+    print("Regularisation parameter C:", C)
+
+    # SVM with rbf kernel
+    regression = svm.SVR(kernel="rbf")
+    regression.fit(features, x_label)
+    # predicts intended motion using the original data as an input
+    predictions = regression.predict(features)
+    print("Predicted output:\n", predictions, "\nActual output:\n", filtered_data[1])
+
+    # calculates and prints the percentage accuracy of the model
+    accuracy = calc_accuracy(predictions, x_label)
+    print("\nAccuracy: " + str(accuracy) + "%")
+
+    # plots data and model (x axis)
+    plot_model(t, data, filtered_data, predictions)
 
 
-# plots the real tremor data
-def plot_model(time, tremor, filtered_tremor):
-    # plots filtered (labels) and unfiltered data in graph
-    plt.plot(time, tremor, label="Training: Noisy tremor")
-    plt.plot(time, filtered_tremor, label="Training: Intended movement")
+# plots the real tremor data and SVM model (x axis)
+def plot_model(time, tremor, filtered_tremor, predictions):
+    # plots SVM regression model
+    plt.plot(time, tremor[1], label="Noisy data with tremor")
+    plt.plot(time, filtered_tremor[1], label="Intended movement without tremor")
+    plt.plot(time, predictions, label="SVM regression model")
 
-    # displays graph (including legend)
+    # displays graphs (+ legend)
     plt.legend()
     plt.show()
 

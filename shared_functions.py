@@ -21,36 +21,59 @@ def calc_average(feature_list, horizon):
     avg_array = []
     for i in range(len(feature_list)):
         # for loop below puts the [horizon] previous values in an array (including current value)
-        for j in range(horizon):
+        for j in range(i - horizon, i + 1):
             # ensures that index does not go out of bounds
-            if i < j:
-                break
-            else:
-                temp_array.append(feature_list[i - j])
-        avg_array.append(sum(temp_array) / horizon)  # saves average of the [horizon] values to the array
+            if j >= 0:
+                temp_array.append(feature_list[j])
+        avg_array.append(sum(temp_array) / len(temp_array))  # saves average to the array
     return avg_array
 
 
 # normalises a list to be between -1 and 1
-def normalise(feature):
-    max_value = find_highest(feature)  # finds the largest value in array
-    return [value / max_value for value in feature]  # normalises the values to be between -1 and 1
+def normalise(features):
+    max_value = find_highest(features, True)  # finds the largest value (magnitude) in array
+    mean = sum(features) / len(features)  # finds the mean of the array
+    return [(value - mean) / max_value for value in features]  # normalises the values to be between -1 and 1
 
 
 # iterates through list to find the highest value
-def find_highest(feature_list):
+def find_highest(features, magnitude):
     max_value = 0
-    for value in feature_list:
-        if abs(value) > max_value:
-            max_value = abs(value)
+    # can find the largest magnitude or the most positive value
+    if magnitude:
+        for value in features:
+            if abs(value) > max_value:
+                max_value = abs(value)
+    else:
+        for value in features:
+            if value > max_value:
+                max_value = value
     return max_value
+
+
+def find_lowest(features, magnitude):
+    min_value = features[0]
+    # can find the smallest magnitude or the most negative value
+    if magnitude:
+        for value in features:
+            if abs(value) < abs(min_value):
+                min_value = abs(value)
+    else:
+        for value in features:
+            if value < min_value:
+                min_value = value
+    return min_value
 
 
 # calculates the accuracy of the model using root mean squared error
 def calc_accuracy(predicted, actual_output):
-    rms_error = mean_squared_error(actual_output, predicted, squared=False)
-    rms_output = np.sqrt(sum(np.square(actual_output)))  # calculates the rms of the voluntary motion
-    return 100 * (1 - (rms_error / rms_output))
+    # finds the maximum and minimum values in the actual output (labels)
+    actual_max = find_highest(actual_output, False)
+    actual_min = find_lowest(actual_output, False)
+    actual_range = (actual_max - actual_min) / 2  # calculates the range (sigma)
+
+    rms_error = mean_squared_error(actual_output, predicted, squared=False)  # calculates the RMS error
+    return 100 * (1 - (rms_error / actual_range))  # uses the range to convert the RMS error into a percentage
 
 
 # finds the change in tremor output
