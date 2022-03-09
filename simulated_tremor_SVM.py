@@ -45,7 +45,7 @@ def main():
     regression.fit(X, y)
     predictions = regression.predict(X)
 
-    # calculates and prints the percentage accuracy of the model
+    # calculates and prints the RMSE of the model
     accuracy = calc_accuracy(predictions, y)
     print("\nAccuracy: " + str(accuracy) + "%")
 
@@ -55,10 +55,18 @@ def main():
 
 # plots the regression model and inputted data on graphs
 def plot_model(time, data, predictions):
+    # splits plot window into 2 graphs
+    fig, axes = plt.subplots(2)
+
+    # plots data
+    axes[0].plot(time, data[1], label="Noisy data with tremor")
+    axes[0].plot(time, data[2], label="Intended movement without tremor")
+    axes[0].legend()
+
     # plots SVM regression model
-    plt.plot(time, data[1], label="Noisy data with tremor")
-    plt.plot(time, data[2], label="Intended movement without tremor")
-    plt.plot(time, predictions, label="SVM regression model")
+    axes[1].plot(time, predictions, label="SVM regression model")
+    axes[1].plot(time, data[2], label="Intended movement without tremor")
+    axes[1].legend()
 
     # displays the plots
     plt.legend()

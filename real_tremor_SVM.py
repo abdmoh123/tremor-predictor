@@ -36,22 +36,28 @@ def main():
     avg_z = normalise(calc_average(z_motion, horizon))
 
     # combines the features into 1 array
-    features = np.vstack((x_motion, delta_x, avg_x)).T
-    print("Features:\n", features)
+    x_features = np.vstack((x_motion, delta_x, avg_x)).T
+    y_features = np.vstack((y_motion, delta_y, avg_y)).T
+    z_features = np.vstack((z_motion, delta_z, avg_z)).T
+    print("X Features:\n", x_features)
+    print("Y Features:\n", y_features)
+    print("Z Features:\n", z_features)
 
     # finds the optimum value for C (regularisation parameter)
-    # C = optimise_reg(features, x_label)  # only required to run once (to find optimum value)
-    C = 10  # optimum C value = 10
-    print("Regularisation parameter C:", C)
+    # C_x = optimise_reg(x_features, x_label)  # only required to run once (to find optimum value)
+    # C_y = optimise_reg(y_features, y_label)  # only required to run once (to find optimum value)
+    # C_z = optimise_reg(z_features, z_label)  # only required to run once (to find optimum value)
+    C_x = 10  # optimum C value = 10
+    print("Regularisation parameter C(x):", C_x)
 
-    # SVM with rbf kernel
-    regression = svm.SVR(kernel="rbf")
-    regression.fit(features, x_label)
+    # SVM with rbf kernel (x axis)
+    regression = svm.SVR(kernel="rbf", C=C_x)
+    regression.fit(x_features, x_label)
     # predicts intended motion using the original data as an input
-    predictions = regression.predict(features)
+    predictions = regression.predict(x_features)
     print("Predicted output:\n", predictions, "\nActual output:\n", filtered_data[1])
 
-    # calculates and prints the percentage accuracy of the model
+    # calculates and prints the RMSE of the model
     accuracy = calc_accuracy(predictions, x_label)
     print("\nAccuracy: " + str(accuracy) + "%")
 
@@ -61,13 +67,20 @@ def main():
 
 # plots the real tremor data and SVM model (x axis)
 def plot_model(time, tremor, filtered_tremor, predictions):
-    # plots SVM regression model
-    plt.plot(time, tremor[1], label="Noisy data with tremor")
-    plt.plot(time, filtered_tremor[1], label="Intended movement without tremor")
-    plt.plot(time, predictions, label="SVM regression model")
+    # splits plot window into 2 graphs
+    fig, axes = plt.subplots(2)
 
-    # displays graphs (+ legend)
-    plt.legend()
+    # plots data
+    axes[0].plot(time, tremor[1], label="Noisy data with tremor")
+    axes[0].plot(time, filtered_tremor[1], label="Intended movement without tremor")
+    axes[0].legend()
+
+    # plots SVM regression model
+    axes[1].plot(time, predictions, label="SVM regression model")
+    axes[1].plot(time, filtered_tremor[1], label="Intended movement without tremor")
+    axes[1].legend()
+
+    # displays graphs
     plt.show()
 
 

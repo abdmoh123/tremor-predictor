@@ -31,13 +31,13 @@ def calc_average(feature_list, horizon):
 
 # normalises a list to be between -1 and 1
 def normalise(features):
-    max_value = find_highest(features, True)  # finds the largest value (magnitude) in array
+    sigma = (find_highest(features) - find_lowest(features)) / 2  # calculates the standard deviation (range / 2)
     mean = sum(features) / len(features)  # finds the mean of the array
-    return [(value - mean) / max_value for value in features]  # normalises the values to be between -1 and 1
+    return [(value - mean) / sigma for value in features]  # normalises the values to be between -1 and 1
 
 
 # iterates through list to find the highest value
-def find_highest(features, magnitude):
+def find_highest(features, magnitude=False):
     max_value = 0
     # can find the largest magnitude or the most positive value
     if magnitude:
@@ -51,7 +51,7 @@ def find_highest(features, magnitude):
     return max_value
 
 
-def find_lowest(features, magnitude):
+def find_lowest(features, magnitude=False):
     min_value = features[0]
     # can find the smallest magnitude or the most negative value
     if magnitude:
@@ -67,13 +67,9 @@ def find_lowest(features, magnitude):
 
 # calculates the accuracy of the model using root mean squared error
 def calc_accuracy(predicted, actual_output):
-    # finds the maximum and minimum values in the actual output (labels)
-    actual_max = find_highest(actual_output, False)
-    actual_min = find_lowest(actual_output, False)
-    actual_range = (actual_max - actual_min) / 2  # calculates the range (sigma)
-
     rms_error = mean_squared_error(actual_output, predicted, squared=False)  # calculates the RMS error
-    return 100 * (1 - (rms_error / actual_range))  # uses the range to convert the RMS error into a percentage
+    sigma = np.std(actual_output)  # calculates the standard deviation of voluntary motion
+    return 100 * (1 - (rms_error / sigma))  # uses the standard deviation to convert the RMS error into a percentage
 
 
 # finds the change in tremor output
