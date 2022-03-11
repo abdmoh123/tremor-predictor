@@ -7,7 +7,7 @@ from shared_functions import *  # functions that apply to both simulated and rea
 
 
 def main():
-    file_name = "real_tremor_data.csv"
+    file_name = "./real_tremor_data.csv"
     horizon = 5  # amount of data to be temporarily stored for feature creation
 
     # reads data into memory and filters it
@@ -68,7 +68,7 @@ def main():
 # plots the real tremor data and SVM model (x axis)
 def plot_model(time, tremor, filtered_tremor, predictions):
     # splits plot window into 2 graphs
-    fig, axes = plt.subplots(2)
+    fig, axes = plt.subplots(3)
 
     # plots data
     axes[0].plot(time, tremor[1], label="Noisy data with tremor")
@@ -79,6 +79,9 @@ def plot_model(time, tremor, filtered_tremor, predictions):
     axes[1].plot(time, predictions, label="SVM regression model")
     axes[1].plot(time, filtered_tremor[1], label="Intended movement without tremor")
     axes[1].legend()
+
+    axes[2].plot(time, tremor[4], label="Grip force")
+    axes[2].legend()
 
     # displays graphs
     plt.show()

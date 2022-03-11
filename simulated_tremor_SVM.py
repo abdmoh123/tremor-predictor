@@ -6,7 +6,7 @@ from shared_functions import *
 
 
 def main():
-    file_name = "tremor_training_data.csv"
+    file_name = "./simulated_tremor_data.csv"
     horizon = 5  # amount of data to be temporarily stored for feature creation
 
     # training data
