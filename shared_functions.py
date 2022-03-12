@@ -81,7 +81,7 @@ def calc_delta(time, feature):
         if i > 0:
             delta_x.append((feature[i] - feature[i - 1]) / t)
         else:
-            delta_x.append(feature[i] / t)
+            delta_x.append(0)
     return delta_x
 
 
