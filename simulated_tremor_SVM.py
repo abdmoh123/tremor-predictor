@@ -36,7 +36,7 @@ def main():
     X = np.vstack((x2, delta_x, avg_x)).T
 
     # finds the optimum value for C (regularisation parameter)
-    # C = optimise_reg(X, y)
+    C = optimise_reg(X, y)
     C = 3  # optimum C value = 3
     print("Regularisation parameter C:", C)
 
@@ -61,11 +61,14 @@ def plot_model(time, data, predictions):
     # plots data
     axes[0].plot(time, data[1], label="Noisy data with tremor")
     axes[0].plot(time, data[2], label="Intended movement without tremor")
+    axes[0].set(ylabel="X motion voltage (V)")
     axes[0].legend()
 
     # plots SVM regression model
     axes[1].plot(time, predictions, label="SVM regression model")
     axes[1].plot(time, data[2], label="Intended movement without tremor")
+    axes[1].set(ylabel="X motion voltage (V)")
+    axes[1].set(xlabel="time/index")
     axes[1].legend()
 
     # displays the plots

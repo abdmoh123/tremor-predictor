@@ -8,7 +8,7 @@ from shared_functions import *  # functions that apply to both simulated and rea
 
 def main():
     file_name = "./real_tremor_data.csv"
-    horizon = 20  # amount of data to be temporarily stored for feature creation
+    horizon = 10  # amount of data to be temporarily stored for feature creation
 
     # reads data into memory and filters it
     data = read_data(file_name, 200, 4000)  # real tremor data (t, x, y, z, grip force)
@@ -17,7 +17,7 @@ def main():
     print("Filtered data:\n", filtered_data)
 
     t = data[0]  # horizontal component (time)
-    x_motion = data[1]  # tremor in x axis
+    x_motion = normalise(data[1])  # tremor in x axis
     x_label = filtered_data[1]  # intended motion in x axis
     # y_motion = normalise(data[2])  # tremor in y axis
     # y_label = filtered_data[2]  # intended motion in y axis
@@ -26,12 +26,12 @@ def main():
     # grip_force = data[4]  # grip force pushed on the device by the user
 
     # calculates the rate of change of 3D motion
-    delta_x = calc_delta(t, x_motion)
+    delta_x = normalise(calc_delta(t, x_motion))
     # delta_y = normalise(calc_delta(t, y_motion))
     # delta_z = normalise(calc_delta(t, z_motion))
 
     # calculates the average 3D motion
-    avg_x = calc_average(x_motion, horizon)
+    avg_x = normalise(calc_average(x_motion, horizon))
     # avg_y = normalise(calc_average(y_motion, horizon))
     # avg_z = normalise(calc_average(z_motion, horizon))
 
@@ -47,7 +47,7 @@ def main():
     # C_x = optimise_reg(x_features, x_label)  # only required to run once (to find optimum value)
     # C_y = optimise_reg(y_features, y_label)  # only required to run once (to find optimum value)
     # C_z = optimise_reg(z_features, z_label)  # only required to run once (to find optimum value)
-    C_x = 30  # optimum C value = 30
+    C_x = 0.01  # optimum C value = 0.01
     print("Regularisation parameter C(x):", C_x)
 
     # SVM with rbf kernel (x axis)
@@ -80,12 +80,14 @@ def plot_model(time, tremor, filtered_tremor, predictions, x_features):
     # plots SVM regression model
     axes[1].plot(time, predictions, label="SVM regression model")
     axes[1].plot(time, filtered_tremor[1], label="Intended movement without tremor")
+    axes[1].set(ylabel="X motion voltage (V)")
     axes[1].legend()
 
     axes[2].plot(time, normalise(x_features[0]), label="X")
-    axes[2].plot(time, normalise(x_features[1]), label="Delta X")
     axes[2].plot(time, normalise(x_features[2]), label="Avg X")
+    axes[2].plot(time, normalise(x_features[1]), label="Delta X")
     # axes[2].plot(time, x_features[3], label="Force * X")
+    axes[2].set(xlabel="time/index")
     axes[2].legend()
 
     # displays graphs
