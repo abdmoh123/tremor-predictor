@@ -2,11 +2,11 @@
 import csv
 import matplotlib.pyplot as plt
 
-from shared_functions import *
+from functions.shared_functions import *
 
 
 def main():
-    file_name = "./simulated_tremor_data.csv"
+    file_name = "./data/simulated_tremor_data.csv"
     horizon = 5  # amount of data to be temporarily stored for feature creation
 
     # training data

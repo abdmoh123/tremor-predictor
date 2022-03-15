@@ -3,11 +3,11 @@ import csv
 import matplotlib.pyplot as plt
 from scipy import signal
 
-from shared_functions import *  # functions that apply to both simulated and real tremor
+from functions.shared_functions import *  # functions that apply to both simulated and real tremor
 
 
 def main():
-    file_name = "./real_tremor_data.csv"
+    file_name = "./data/real_tremor_data.csv"
     horizon = 10  # amount of data to be temporarily stored for feature creation
 
     # reads data into memory and filters it
