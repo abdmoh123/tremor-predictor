@@ -2,7 +2,9 @@
 import csv
 import matplotlib.pyplot as plt
 
-from functions.shared_functions import *
+# functions that apply to both simulated and real tremor
+from functions.feature_handler import *
+from functions.miscellaneous import *
 
 
 def main():

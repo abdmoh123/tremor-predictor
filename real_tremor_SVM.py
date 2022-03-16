@@ -3,7 +3,9 @@ import csv
 import matplotlib.pyplot as plt
 from scipy import signal
 
-from functions.shared_functions import *  # functions that apply to both simulated and real tremor
+# functions that apply to both simulated and real tremor
+from functions.feature_handler import *
+from functions.miscellaneous import *
 
 
 def main():
@@ -17,8 +19,8 @@ def main():
     print("Filtered data:\n", filtered_data)
 
     t = data[0]  # horizontal component (time)
-    x_motion = normalise(data[1])  # tremor in x axis
-    x_label = filtered_data[1]  # intended motion in x axis
+    [x_motion, x_motion_mean, x_motion_sigma] = normalise(data[1], True)  # tremor in x axis
+    [x_label, x_label_mean, x_label_sigma] = normalise(filtered_data[1], True)  # intended motion in x axis
     # y_motion = normalise(data[2])  # tremor in y axis
     # y_label = filtered_data[2]  # intended motion in y axis
     # z_motion = normalise(data[3])  # tremor in z axis
@@ -27,27 +29,17 @@ def main():
 
     # calculates the rate of change of 3D motion
     delta_x = normalise(calc_delta(t, x_motion))
-    # delta_y = normalise(calc_delta(t, y_motion))
-    # delta_z = normalise(calc_delta(t, z_motion))
 
     # calculates the average 3D motion
     avg_x = normalise(calc_average(x_motion, horizon))
-    # avg_y = normalise(calc_average(y_motion, horizon))
-    # avg_z = normalise(calc_average(z_motion, horizon))
 
     # combines the features into 1 array
     x_features = np.vstack((x_motion, delta_x, avg_x)).T
-    # y_features = np.vstack((y_motion, delta_y, avg_y)).T
-    # z_features = np.vstack((z_motion, delta_z, avg_z)).T
     print("X Features:\n", x_features)
-    # print("Y Features:\n", y_features)
-    # print("Z Features:\n", z_features)
 
     # finds the optimum value for C (regularisation parameter)
     # C_x = optimise_reg(x_features, x_label)  # only required to run once (to find optimum value)
-    # C_y = optimise_reg(y_features, y_label)  # only required to run once (to find optimum value)
-    # C_z = optimise_reg(z_features, z_label)  # only required to run once (to find optimum value)
-    C_x = 0.01  # optimum C value = 0.01
+    C_x = 1  # optimum C value = 1
     print("Regularisation parameter C(x):", C_x)
 
     # SVM with rbf kernel (x axis)
@@ -61,32 +53,42 @@ def main():
     accuracy = calc_accuracy(predictions, x_label)
     print("\nAccuracy: " + str(accuracy) + "%")
 
-    list_x = [x_motion, delta_x, avg_x]
-
+    # denormalises the data (to its original scale)
+    x_motion = denormalise(x_motion, x_motion_mean, x_motion_sigma)
+    x_label = denormalise(x_label, x_label_mean, x_label_sigma)
+    predictions = denormalise(predictions, x_label_mean, x_label_sigma)  # scaled to the intended motion
+    # puts all data in a dictionary for passing to the plot function
+    data_list = {
+        'x_motion': x_motion,
+        'delta_x': delta_x,
+        'avg_x': avg_x,
+        'x_label': x_label,
+        'predictions': predictions
+    }
     # plots data and model (x axis)
-    plot_model(t, data, filtered_data, predictions, list_x)
+    plot_model(t, data_list)
 
 
 # plots the real tremor data and SVM model (x axis)
-def plot_model(time, tremor, filtered_tremor, predictions, x_features):
+def plot_model(time, data):
     # splits plot window into 2 graphs
     fig, axes = plt.subplots(3)
 
     # plots data
-    axes[0].plot(time, tremor[1], label="Noisy data with tremor")
-    axes[0].plot(time, filtered_tremor[1], label="Intended movement without tremor")
+    axes[0].plot(time, data['x_motion'], label="Noisy data with tremor")
+    axes[0].plot(time, data['x_label'], label="Intended movement without tremor")
     axes[0].legend()
 
     # plots SVM regression model
-    axes[1].plot(time, predictions, label="SVM regression model")
-    axes[1].plot(time, filtered_tremor[1], label="Intended movement without tremor")
+    axes[1].plot(time, data['predictions'], label="SVM regression model")
+    axes[1].plot(time, data['x_label'], label="Intended movement without tremor")
     axes[1].set(ylabel="X motion voltage (V)")
     axes[1].legend()
 
-    axes[2].plot(time, normalise(x_features[0]), label="X")
-    axes[2].plot(time, normalise(x_features[2]), label="Avg X")
-    axes[2].plot(time, normalise(x_features[1]), label="Delta X")
-    # axes[2].plot(time, x_features[3], label="Force * X")
+    # plots the features (normalised)
+    axes[2].plot(time, normalise(data['x_motion']), label="X")
+    axes[2].plot(time, normalise(data['avg_x']), label="Avg X")
+    axes[2].plot(time, normalise(data['delta_x']), label="Delta X")
     axes[2].set(xlabel="time/index")
     axes[2].legend()
 
