@@ -33,33 +33,39 @@ def main():
     # [horizon, C_x] = mf.optimise([x_motion, delta_x], x_label)  # only required to run once (to find optimal values)
     C_x = 21.87  # optimal C value = 21.87
     horizon = 5  # optimal horizon value = 5
-    print("Regularisation parameter C(x):", C_x)
-    print("Horizon value:", horizon)
+    print("Regularisation parameter C(x):", C_x, "\nHorizon value:", horizon)
 
     # calculates the average 3D motion
     avg_x = fh.normalise(fh.calc_average(x_motion, horizon))  # (feature 3)
 
     # combines the features into 1 array
     x_features = np.vstack((x_motion, delta_x, avg_x)).T
-    print("X Features:\n", x_features)
+    print("\nX Features:\n", x_features)
 
     # SVM with rbf kernel (x axis)
     regression = svm.SVR(kernel="rbf", C=C_x)
     regression.fit(x_features, x_label)
-    # predicts intended motion using the original data as an input
-    predictions = regression.predict(x_features)
-    print("Predicted output:\n", predictions, "\nActual output:\n", filtered_data[1])
+    # predicts intended motion using the original data as an input (scaled to intended motion)
+    predictions = fh.denormalise(regression.predict(x_features), x_label_mean, x_label_sigma)
+    print("\nPredicted output:\n", predictions, "\nActual output:\n", filtered_data[1])
 
-    # calculates and prints the RMSE of the model
-    accuracy = mf.calc_accuracy(predictions, x_label)
+    # calculates and prints the normalised RMSE of the model
+    accuracy = mf.calc_accuracy(predictions, filtered_data[1])
     print("\nAccuracy: " + str(accuracy) + "%")
-
     # denormalises the data (to its original scale)
     x_motion = fh.denormalise(x_motion, x_motion_mean, x_motion_sigma)
     x_label = fh.denormalise(x_label, x_label_mean, x_label_sigma)
-    predictions = fh.denormalise(predictions, x_label_mean, x_label_sigma)  # scaled to the intended motion
+
+    # gets the tremor component by subtracting from the voluntary motion
+    actual_tremor = np.subtract(x_motion, x_label)
+    predicted_tremor = np.subtract(predictions, x_label)
+    tremor_error = np.subtract(actual_tremor, predicted_tremor)
+    # calculates and prints the normalised RMSE percentage of the tremor component
+    tremor_accuracy = mf.calc_accuracy(predicted_tremor, actual_tremor)
+    print("Tremor accuracy: " + str(tremor_accuracy) + "%")
+
     # puts all data in a dictionary for passing to the plot function
-    data_list = {
+    data_dict = {
         'x_motion': x_motion,
         'delta_x': delta_x,
         'avg_x': avg_x,
@@ -67,7 +73,15 @@ def main():
         'predictions': predictions
     }
     # plots data and model (x axis)
-    plot_model(t, data_list)
+    plot_model(t, data_dict)
+    # puts tremor component data in a dictionary
+    tremor_dict = {
+        'actual_tremor': actual_tremor,
+        'predicted_tremor': predicted_tremor,
+        'tremor_error': tremor_error
+    }
+    # plots the tremor components (x axis) in a separate graph
+    plot_tremor(t, tremor_dict)
 
 
 # plots the real tremor data and SVM model (x axis)
@@ -93,6 +107,20 @@ def plot_model(time, data):
     axes[2].set(xlabel="time/index")
     axes[2].legend()
 
+    # displays graphs
+    plt.show()
+
+
+# plots the tremor component of the data and predictions
+def plot_tremor(time, data):
+    # plots tremor data
+    plt.plot(time, data['actual_tremor'], label="Actual tremor", linewidth=0.5)
+    plt.plot(time, data['predicted_tremor'], label="Predicted tremor", linewidth=0.5)
+    plt.plot(time, data['tremor_error'], label="Tremor error", linewidth=0.5)
+    # axes labels and legend
+    plt.ylabel("X motion voltage (V)")
+    plt.xlabel("time/index")
+    plt.legend()
     # displays graphs
     plt.show()
 
