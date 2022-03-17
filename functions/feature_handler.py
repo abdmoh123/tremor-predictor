@@ -1,6 +1,5 @@
 import math
-from functions.miscellaneous import find_highest
-from functions.miscellaneous import find_lowest
+import functions.miscellaneous as mf
 
 
 # finds the change in tremor output
@@ -37,7 +36,7 @@ def calc_average(feature_list, horizon):
 
 # normalises a list to be between -1 and 1
 def normalise(data, return_averages=False):
-    sigma = (find_highest(data) - find_lowest(data)) / 2  # calculates the standard deviation (range / 2)
+    sigma = (mf.find_highest(data) - mf.find_lowest(data)) / 2  # calculates the standard deviation (range / 2)
     mean = sum(data) / len(data)  # finds the mean of the array
     norm_data = [(value - mean) / sigma for value in data]  # normalises the values to be between -1 and 1
 

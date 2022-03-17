@@ -2,6 +2,8 @@ import numpy as np
 from sklearn import svm
 from sklearn.metrics import mean_squared_error
 
+import functions.feature_handler as fh
+
 
 def check_bounds(l_bound, u_bound, rows):
     # ensures that the lower bound is smaller than the upper bound
@@ -12,7 +14,7 @@ def check_bounds(l_bound, u_bound, rows):
         l_bound = 0
     if (u_bound > len(rows)) | (u_bound <= 0):
         u_bound = len(rows)
-    return [l_bound, u_bound]
+    return l_bound, u_bound
 
 
 # iterates through list to find the highest value
@@ -51,24 +53,40 @@ def calc_accuracy(predicted, actual_output):
     return 100 * (1 - (rms_error / sigma))  # uses the standard deviation to convert the RMS error into a percentage
 
 
-# finds the optimum regularisation parameter value for an SVM regression model
-def optimise_reg(features, labels):
-    C = 0  # regularisation parameter
-    choices = [0.01, 0.03, 0.1, 0.3, 1, 3, 10, 30]  # regularisation parameter values to be tested
+# finds the optimal regularisation parameter and average horizon for an SVM regression model
+def optimise(features, labels):
+    horizon = 1  # regularisation parameter (starts at 1 to prevent division by zero)
+    max_horizon = 50  # limit for the horizon loop
+    horizon_increment = 2
+
+    C = 0.01  # regularisation parameter
+    max_C = 30  # limit for the C loop
+    C_increment = 3
+
     accuracy = 0  # initialised as 0 because it will only go up
 
-    # loops through all the C choices to find the most accurate result
-    for temp_C in choices:
-        # SVM with rbf kernel and a chosen regularisation parameter
-        regression = svm.SVR(kernel="rbf", C=temp_C)
-        regression.fit(features, labels)
-        predictions = regression.predict(features)
+    temp_horizon = horizon  # temp value for iteration
+    # loop evaluates models repeatedly to find optimal horizon value
+    while temp_horizon <= max_horizon:
+        temp_C = 0.01  # temp value for iteration
+        # loops to find optimal regularisation parameter value (C)
+        while temp_C <= max_C:
+            average = fh.normalise(fh.calc_average(features[0], temp_horizon))
+            temp_features = np.vstack((features[0], features[1], average)).T
 
-        # calculates the percentage accuracy of the model
-        temp_accuracy = calc_accuracy(predictions, labels)
+            # SVM with rbf kernel
+            regression = svm.SVR(kernel="rbf", C=temp_C)
+            regression.fit(temp_features, labels)
+            predictions = regression.predict(temp_features)
 
-        # C values are only updated if the new value gives a more accurate model
-        if temp_accuracy > accuracy:
-            accuracy = temp_accuracy
-            C = temp_C
-    return C
+            # calculates the percentage accuracy of the model
+            temp_accuracy = calc_accuracy(predictions, labels)
+
+            # horizon is only updated if the new value gives a more accurate model
+            if temp_accuracy >= accuracy:
+                accuracy = temp_accuracy
+                horizon = temp_horizon
+                C = temp_C
+            temp_C *= C_increment  # C is multiplied with every loop (to give estimate optimum)
+        temp_horizon += horizon_increment  # horizon values are incremented in values of 2
+    return horizon, C

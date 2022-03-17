@@ -1,46 +1,47 @@
 # libraries imported
 import csv
 import matplotlib.pyplot as plt
+import numpy as np
 from scipy import signal
+from sklearn import svm
 
 # functions that apply to both simulated and real tremor
-from functions.feature_handler import *
-from functions.miscellaneous import *
+import functions.feature_handler as fh
+import functions.miscellaneous as mf
 
 
 def main():
     file_name = "./data/real_tremor_data.csv"
-    horizon = 10  # amount of data to be temporarily stored for feature creation
 
     # reads data into memory and filters it
     data = read_data(file_name, 200, 4000)  # real tremor data (t, x, y, z, grip force)
     filtered_data = filter_data(data)  # filters data to get an estimate of intended movement (label)
-    print("Original data:\n", data)
-    print("Filtered data:\n", filtered_data)
 
     t = data[0]  # horizontal component (time)
-    [x_motion, x_motion_mean, x_motion_sigma] = normalise(data[1], True)  # tremor in x axis
-    [x_label, x_label_mean, x_label_sigma] = normalise(filtered_data[1], True)  # intended motion in x axis
-    # y_motion = normalise(data[2])  # tremor in y axis
+    [x_motion, x_motion_mean, x_motion_sigma] = fh.normalise(data[1], True)  # tremor in x axis (feature 1)
+    [x_label, x_label_mean, x_label_sigma] = fh.normalise(filtered_data[1], True)  # intended motion in x axis
+    # y_motion = fh.normalise(data[2])  # tremor in y axis
     # y_label = filtered_data[2]  # intended motion in y axis
-    # z_motion = normalise(data[3])  # tremor in z axis
+    # z_motion = fh.normalise(data[3])  # tremor in z axis
     # z_label = filtered_data[3]  # intended motion in z axis
     # grip_force = data[4]  # grip force pushed on the device by the user
 
     # calculates the rate of change of 3D motion
-    delta_x = normalise(calc_delta(t, x_motion))
+    delta_x = fh.normalise(fh.calc_delta(t, x_motion))  # (feature 2)
+
+    # finds the optimum value for C (regularisation parameter)
+    # [horizon, C_x] = mf.optimise([x_motion, delta_x], x_label)  # only required to run once (to find optimal values)
+    C_x = 21.87  # optimal C value = 21.87
+    horizon = 5  # optimal horizon value = 5
+    print("Regularisation parameter C(x):", C_x)
+    print("Horizon value:", horizon)
 
     # calculates the average 3D motion
-    avg_x = normalise(calc_average(x_motion, horizon))
+    avg_x = fh.normalise(fh.calc_average(x_motion, horizon))  # (feature 3)
 
     # combines the features into 1 array
     x_features = np.vstack((x_motion, delta_x, avg_x)).T
     print("X Features:\n", x_features)
-
-    # finds the optimum value for C (regularisation parameter)
-    # C_x = optimise_reg(x_features, x_label)  # only required to run once (to find optimum value)
-    C_x = 1  # optimum C value = 1
-    print("Regularisation parameter C(x):", C_x)
 
     # SVM with rbf kernel (x axis)
     regression = svm.SVR(kernel="rbf", C=C_x)
@@ -50,13 +51,13 @@ def main():
     print("Predicted output:\n", predictions, "\nActual output:\n", filtered_data[1])
 
     # calculates and prints the RMSE of the model
-    accuracy = calc_accuracy(predictions, x_label)
+    accuracy = mf.calc_accuracy(predictions, x_label)
     print("\nAccuracy: " + str(accuracy) + "%")
 
     # denormalises the data (to its original scale)
-    x_motion = denormalise(x_motion, x_motion_mean, x_motion_sigma)
-    x_label = denormalise(x_label, x_label_mean, x_label_sigma)
-    predictions = denormalise(predictions, x_label_mean, x_label_sigma)  # scaled to the intended motion
+    x_motion = fh.denormalise(x_motion, x_motion_mean, x_motion_sigma)
+    x_label = fh.denormalise(x_label, x_label_mean, x_label_sigma)
+    predictions = fh.denormalise(predictions, x_label_mean, x_label_sigma)  # scaled to the intended motion
     # puts all data in a dictionary for passing to the plot function
     data_list = {
         'x_motion': x_motion,
@@ -86,9 +87,9 @@ def plot_model(time, data):
     axes[1].legend()
 
     # plots the features (normalised)
-    axes[2].plot(time, normalise(data['x_motion']), label="X")
-    axes[2].plot(time, normalise(data['avg_x']), label="Avg X")
-    axes[2].plot(time, normalise(data['delta_x']), label="Delta X")
+    axes[2].plot(time, fh.normalise(data['x_motion']), label="X")
+    axes[2].plot(time, fh.normalise(data['avg_x']), label="Avg X")
+    axes[2].plot(time, fh.normalise(data['delta_x']), label="Delta X")
     axes[2].set(xlabel="time/index")
     axes[2].legend()
 
@@ -116,7 +117,7 @@ def read_data(file_name, l_bound, u_bound):
         rows = list(reader)
 
         # ensures bounds are valid
-        [l_bound, u_bound] = check_bounds(l_bound, u_bound, rows)
+        [l_bound, u_bound] = mf.check_bounds(l_bound, u_bound, rows)
 
         # reads through the file and puts the data in the respective lists above
         for i in range(l_bound, u_bound):
