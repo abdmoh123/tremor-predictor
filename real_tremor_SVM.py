@@ -26,10 +26,10 @@ def main():
     # z_label = filtered_data[3]  # intended motion in z axis
 
     # calculates the rate of change of 3D motion
-    delta_x = fh.normalise(fh.calc_delta(time, x_motion))  # (feature 2)
+    x_velocity = fh.normalise(fh.calc_delta(time, x_motion))  # (feature 2)
 
     # finds the optimum value for C (regularisation parameter)
-    # [horizon, C_x] = mf.optimise([x_motion, delta_x, grip_force], x_label)  # only required to run once
+    # [horizon, C_x] = mf.optimise([x_motion, x_velocity], x_label)  # only required to run once
     C_x = 21.87  # optimal C value = 21.87
     horizon = 5  # optimal horizon value = 5
     print("Regularisation parameter C(x):", C_x, "\nHorizon value:", horizon)
@@ -38,7 +38,7 @@ def main():
     avg_x = fh.normalise(fh.calc_average(x_motion, horizon))  # (feature 3)
 
     # combines the features into 1 array
-    x_features = np.vstack((x_motion, delta_x, avg_x)).T
+    x_features = np.vstack((x_motion, x_velocity, avg_x)).T
     print("\nX Features:\n", x_features)
 
     # SVM with rbf kernel (x axis)
@@ -67,7 +67,7 @@ def main():
     features = [
         [x_motion, "X motion"],
         [avg_x, "Average X motion"],
-        [delta_x, "Delta X motion"],
+        [x_velocity, "X Velocity"],
     ]
     # plots data and model (x axis)
     plot_model(time, features, x_label, predictions)
@@ -102,7 +102,7 @@ def plot_model(time, features, label, predictions):
     for feature in features:
         axes[2].plot(time, fh.normalise(feature[0]), label=feature[1])
     axes[2].set(ylabel="X motion (normalised)")
-    axes[2].set(xlabel="Index")
+    axes[2].set(xlabel="Time (s)")
     axes[2].legend()
 
     # displays graphs
@@ -117,7 +117,7 @@ def plot_tremor(time, tremors):
 
     # axes labels and legend
     plt.ylabel("X tremor motion (mm)")
-    plt.xlabel("Index")
+    plt.xlabel("Time (s)")
     plt.legend()
 
     # displays graphs
