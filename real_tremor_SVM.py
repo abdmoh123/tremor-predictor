@@ -24,7 +24,6 @@ def main():
     # y_label = filtered_data[2]  # intended motion in y axis
     # z_motion = fh.normalise(data[3])  # tremor in z axis
     # z_label = filtered_data[3]  # intended motion in z axis
-    grip_force = fh.normalise(data[4])  # grip force pushed on the device by the user
 
     # calculates the rate of change of 3D motion
     delta_x = fh.normalise(fh.calc_delta(time, x_motion))  # (feature 2)
@@ -39,7 +38,7 @@ def main():
     avg_x = fh.normalise(fh.calc_average(x_motion, horizon))  # (feature 3)
 
     # combines the features into 1 array
-    x_features = np.vstack((x_motion, delta_x, avg_x, grip_force)).T
+    x_features = np.vstack((x_motion, delta_x, avg_x)).T
     print("\nX Features:\n", x_features)
 
     # SVM with rbf kernel (x axis)
@@ -69,7 +68,6 @@ def main():
         [x_motion, "X motion"],
         [avg_x, "Average X motion"],
         [delta_x, "Delta X motion"],
-        [grip_force, "Grip force"]
     ]
     # plots data and model (x axis)
     plot_model(time, features, x_label, predictions)
