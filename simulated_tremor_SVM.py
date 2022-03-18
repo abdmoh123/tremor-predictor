@@ -1,54 +1,52 @@
 # libraries imported
 import csv
 import matplotlib.pyplot as plt
+import numpy as np
+from sklearn import svm
 
 # functions that apply to both simulated and real tremor
-from functions.feature_handler import *
-from functions.miscellaneous import *
+import functions.feature_handler as fh
+import functions.miscellaneous as mf
 
 
 def main():
     file_name = "./data/simulated_tremor_data.csv"
-    horizon = 5  # amount of data to be temporarily stored for feature creation
 
     # training data
     data = read_data(file_name, 0, 152, 1)  # simulated tremor data
     x1 = data[0]  # horizontal component (time)
-    x2 = data[1]  # noisy tremor output
-    y = data[2]  # intended movement (for training) - labels will always be the last column in array
-    # prints training data in the console
+    x2 = fh.normalise(data[1])  # noisy tremor output + normalises it
+    [y, y_mean, y_sigma] = fh.normalise(data[2], True)  # intended movement (for training) + normalises it
+    # prints data in the console
     print("X1:\n", x1)
     print("X2:\n", x2)
     print("Y:\n", y)
 
-    # calculates the change in tremor output
-    delta_x = calc_delta(x1, x2)
+    # calculates the change in tremor output + normalises it
+    delta_x = fh.normalise(fh.calc_delta(x1, x2))
     print("Change in X:\n", delta_x)
 
-    # calculates average of every [horizon] tremor outputs
-    avg_x = calc_average(x2, horizon)
-    print("Average X values:\n", avg_x)
+    # finds the optimum value for C (regularisation parameter)
+    [horizon, C] = mf.optimise([x2, delta_x], y)
+    # C = 2.43  # optimal C value = 2.43
+    # horizon = x  # optimal horizon value = 5
+    print("Regularisation parameter C:", C, "\nHorizon value:", horizon)
 
-    # applies feature scaling to training data
-    x2 = normalise(x2)
-    delta_x = normalise(delta_x)
-    avg_x = normalise(avg_x)
+    # calculates average of every [horizon] tremor outputs + normalises it
+    avg_x = fh.normalise(fh.calc_average(x2, horizon))
+    print("Average X values:\n", avg_x)
 
     # puts the features in 1 array
     X = np.vstack((x2, delta_x, avg_x)).T
 
-    # finds the optimum value for C (regularisation parameter)
-    C = optimise_reg(X, y)
-    C = 3  # optimum C value = 3
-    print("Regularisation parameter C:", C)
-
     # SVM with rbf kernel
     regression = svm.SVR(kernel="rbf", C=C)
     regression.fit(X, y)
-    predictions = regression.predict(X)
+    predictions = fh.denormalise(regression.predict(X), y_mean, y_sigma)
 
     # calculates and prints the RMSE of the model
-    accuracy = calc_accuracy(predictions, y)
+    y = fh.denormalise(y, y_mean, y_sigma)
+    accuracy = mf.calc_accuracy(predictions, y)
     print("\nAccuracy: " + str(accuracy) + "%")
 
     # plots the data and model on a graph
@@ -89,7 +87,7 @@ def read_data(file_name, l_bound, u_bound, label_col):
         rows = list(reader)
 
         # ensures bounds are valid
-        [l_bound, u_bound] = check_bounds(l_bound, u_bound, rows)
+        [l_bound, u_bound] = mf.check_bounds(l_bound, u_bound, rows)
 
         # reads through the file and puts the data in the respective lists above
         for i in range(l_bound, u_bound):
