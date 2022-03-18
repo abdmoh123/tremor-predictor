@@ -71,8 +71,13 @@ def optimise(features, labels):
         temp_C = 0.01  # temp value for iteration
         # loops to find optimal regularisation parameter value (C)
         while temp_C <= max_C:
+            # calculates the average motion
             average = fh.normalise(fh.calc_average(features[0], temp_horizon))
-            temp_features = np.vstack((features[0], features[1], average)).T
+
+            # puts the features (including average) in an array ready for SVR fitting
+            temp_features = list(features)
+            temp_features.append(average)
+            temp_features = np.vstack(temp_features).T
 
             # SVM with rbf kernel
             regression = svm.SVR(kernel="rbf", C=temp_C)

@@ -20,25 +20,24 @@ def main():
     time = np.array(data[0], dtype='f') / 250  # samples are measured at a rate of 250Hz
     [x_motion, x_motion_mean, x_motion_sigma] = fh.normalise(data[1], True)  # tremor in x axis (feature 1)
     [x_label, x_label_mean, x_label_sigma] = fh.normalise(filtered_data[1], True)  # intended motion in x axis
-    # y_motion = fh.normalise(data[2])  # tremor in y axis
-    # y_label = filtered_data[2]  # intended motion in y axis
-    # z_motion = fh.normalise(data[3])  # tremor in z axis
-    # z_label = filtered_data[3]  # intended motion in z axis
 
     # calculates the rate of change of 3D motion
     x_velocity = fh.normalise(fh.calc_delta(time, x_motion))  # (feature 2)
 
+    x_features = [x_motion, x_velocity]
+
     # finds the optimum value for C (regularisation parameter)
-    # [horizon, C_x] = mf.optimise([x_motion, x_velocity], x_label)  # only required to run once
+    # [horizon, C_x] = mf.optimise(x_features, x_label)  # only required to run once
     C_x = 21.87  # optimal C value = 21.87
     horizon = 5  # optimal horizon value = 5
     print("Regularisation parameter C(x):", C_x, "\nHorizon value:", horizon)
 
     # calculates the average 3D motion
     avg_x = fh.normalise(fh.calc_average(x_motion, horizon))  # (feature 3)
+    x_features.append(avg_x)
 
     # combines the features into 1 array
-    x_features = np.vstack((x_motion, x_velocity, avg_x)).T
+    x_features = np.vstack(x_features).T
     print("\nX Features:\n", x_features)
 
     # SVM with rbf kernel (x axis)
@@ -65,29 +64,29 @@ def main():
 
     # puts all features in a list for passing to the plot function
     features = [
-        [x_motion, "X motion"],
-        [avg_x, "Average X motion"],
-        [x_velocity, "X Velocity"],
+        [fh.normalise(x_motion), "Motion (x)"],
+        [avg_x, "Average motion (x)"],
+        [x_velocity, "Velocity (x)"],
     ]
-    # plots data and model (x axis)
-    plot_model(time, features, x_label, predictions)
     # puts tremor component data in a list
     tremors = [
-        [actual_tremor, "Actual tremor"],
-        [predicted_tremor, "Predicted tremor"],
-        [tremor_error, "Tremor error"]
+        [actual_tremor, "Actual tremor (x)"],
+        [predicted_tremor, "Predicted tremor (x)"],
+        [tremor_error, "Tremor error (x)"]
     ]
-    # plots the tremor components (x axis) in a separate graph
-    plot_tremor(time, tremors)
+
+    plot_model(time, x_motion, x_label, predictions)  # plots SVR model (x axis)
+    plot_data(time, tremors, "X motion (mm)")  # plots the tremor components (x axis) in a separate graph
+    plot_data(time, features, "X motion (n)")  # plots the features (x axis) in a separate graph
 
 
 # plots the real tremor data and SVM model (x axis)
-def plot_model(time, features, label, predictions):
+def plot_model(time, input_motion, label, predictions):
     # splits plot window into 2 graphs
-    fig, axes = plt.subplots(3)
+    fig, axes = plt.subplots(2)
 
     # plots data
-    axes[0].plot(time, features[0][0], label="Noisy data with tremor")
+    axes[0].plot(time, input_motion, label="Noisy data with tremor")
     axes[0].plot(time, label, label="Intended movement without tremor")
     axes[0].set(ylabel="X motion (mm)")
     axes[0].legend()
@@ -96,29 +95,25 @@ def plot_model(time, features, label, predictions):
     axes[1].plot(time, predictions, label="SVM regression model")
     axes[1].plot(time, label, label="Intended movement without tremor")
     axes[1].set(ylabel="X motion (mm)")
+    axes[1].set(xlabel="Time (s)")
     axes[1].legend()
-
-    # plots the features (normalised)
-    for feature in features:
-        axes[2].plot(time, fh.normalise(feature[0]), label=feature[1])
-    axes[2].set(ylabel="X motion (normalised)")
-    axes[2].set(xlabel="Time (s)")
-    axes[2].legend()
 
     # displays graphs
     plt.show()
 
 
 # plots the tremor component of the data and predictions
-def plot_tremor(time, tremors):
+def plot_data(time, data, y_axis_label):
+    fig, axes = plt.subplots(len(data))
+
     # plots tremor data
-    for tremor in tremors:
-        plt.plot(time, tremor[0], label=tremor[1], linewidth=0.5)
+    for i in range(len(data)):
+        axes[i].plot(time, data[i][0], label=data[i][1], linewidth=0.5)
+        axes[i].set(ylabel=y_axis_label)
+        axes[i].legend()
 
     # axes labels and legend
-    plt.ylabel("X tremor motion (mm)")
-    plt.xlabel("Time (s)")
-    plt.legend()
+    axes[len(data) - 1].set(xlabel="Time (s)")
 
     # displays graphs
     plt.show()
