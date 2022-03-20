@@ -49,8 +49,11 @@ def find_lowest(features, magnitude=False):
 # calculates the accuracy of the model using root mean squared error
 def calc_accuracy(predicted, actual_output):
     rms_error = mean_squared_error(actual_output, predicted, squared=False)  # calculates the RMS error
-    sigma = np.std(actual_output)  # calculates the standard deviation of voluntary motion
-    return 100 * (1 - (rms_error / sigma))  # uses the standard deviation to convert the RMS error into a percentage
+    nrms_error = rms_error / np.std(actual_output)  # normalises the RMSE using the standard deviation
+    # clips the output to 0 (minimum value is 0%)
+    if nrms_error > 1:
+        return 0
+    return 100 * (1 - nrms_error)  # converts the normalised RMSE to a percentage
 
 
 def calc_tremor_accuracy(input_motion, predictions, voluntary_motion):

@@ -98,13 +98,13 @@ def main():
 
     # gets the tremor component by subtracting from the voluntary motion
     x_actual_tremor = np.subtract(x_motion, x_label)
-    x_predicted_tremor = np.subtract(x_predictions, x_label)
+    x_predicted_tremor = np.subtract(x_motion, x_predictions)
     x_tremor_error = np.subtract(x_actual_tremor, x_predicted_tremor)
     y_actual_tremor = np.subtract(y_motion, y_label)
-    y_predicted_tremor = np.subtract(y_predictions, y_label)
+    y_predicted_tremor = np.subtract(y_motion, y_predictions)
     y_tremor_error = np.subtract(y_actual_tremor, y_predicted_tremor)
     z_actual_tremor = np.subtract(z_motion, z_label)
-    z_predicted_tremor = np.subtract(z_predictions, z_label)
+    z_predicted_tremor = np.subtract(z_motion, z_predictions)
     z_tremor_error = np.subtract(z_actual_tremor, z_predicted_tremor)
     # calculates and prints the normalised RMSE percentage of the tremor component
     x_tremor_accuracy = mf.calc_accuracy(x_predicted_tremor, x_actual_tremor)
