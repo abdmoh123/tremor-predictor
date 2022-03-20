@@ -35,15 +35,15 @@ def main():
     z_features = [z_motion, z_velocity]
 
     # finds the optimum value for C (regularisation parameter)
-    # [horizon_x, C_x] = mf.optimise(x_features, x_label)  # only required to run once
-    # [horizon_y, C_y] = mf.optimise(y_features, y_label)  # only required to run once
-    # [horizon_z, C_z] = mf.optimise(z_features, z_label)  # only required to run once
-    C_x = 21.87  # optimal C value = 21.87
-    horizon_x = 5  # optimal horizon value = 5
-    C_y = 21.87  # optimal C value = 21.87
-    horizon_y = 49  # optimal horizon value = 49
-    C_z = 21.87  # optimal C value = 21.87
-    horizon_z = 1  # optimal horizon value = 1
+    [horizon_x, C_x] = mf.optimise(x_features, x_label)  # only required to run once
+    [horizon_y, C_y] = mf.optimise(y_features, y_label)  # only required to run once
+    [horizon_z, C_z] = mf.optimise(z_features, z_label)  # only required to run once
+    # C_x = 21.87  # optimal C value = 21.87
+    # horizon_x = 5  # optimal horizon value = 5
+    # C_y = 21.87  # optimal C value = 21.87
+    # horizon_y = 49  # optimal horizon value = 49
+    # C_z = 21.87  # optimal C value = 21.87
+    # horizon_z = 1  # optimal horizon value = 1
     print("Regularisation parameter C(x):", C_x, "\nHorizon value (x):", horizon_x)
     print("Regularisation parameter C(y):", C_y, "\nHorizon value (y):", horizon_y)
     print("Regularisation parameter C(z):", C_z, "\nHorizon value (z):", horizon_z)

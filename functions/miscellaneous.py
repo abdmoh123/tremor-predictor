@@ -59,7 +59,7 @@ def calc_accuracy(predicted, actual_output):
 def calc_tremor_accuracy(input_motion, predictions, voluntary_motion):
     # gets the tremor component by subtracting from the voluntary motion
     actual_tremor = np.subtract(input_motion, voluntary_motion)
-    predicted_tremor = np.subtract(predictions, voluntary_motion)
+    predicted_tremor = np.subtract(input_motion, predictions)
 
     # calculates and returns the normalised RMSE percentage of the tremor component
     return calc_accuracy(predicted_tremor, actual_tremor)
@@ -97,7 +97,7 @@ def optimise(features, labels):
             predictions = regression.predict(temp_features)
 
             # calculates the percentage accuracy of the model
-            temp_accuracy = calc_accuracy(predictions, labels)
+            temp_accuracy = calc_tremor_accuracy(features[0], predictions, labels)  # features[0] being original input
 
             # horizon is only updated if the new value gives a more accurate model
             if temp_accuracy >= accuracy:
