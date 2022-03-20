@@ -53,6 +53,15 @@ def calc_accuracy(predicted, actual_output):
     return 100 * (1 - (rms_error / sigma))  # uses the standard deviation to convert the RMS error into a percentage
 
 
+def calc_tremor_accuracy(input_motion, predictions, voluntary_motion):
+    # gets the tremor component by subtracting from the voluntary motion
+    actual_tremor = np.subtract(input_motion, voluntary_motion)
+    predicted_tremor = np.subtract(predictions, voluntary_motion)
+
+    # calculates and returns the normalised RMSE percentage of the tremor component
+    return calc_accuracy(predicted_tremor, actual_tremor)
+
+
 # finds the optimal regularisation parameter and average horizon for an SVM regression model
 def optimise(features, labels):
     horizon = 1  # regularisation parameter (starts at 1 to prevent division by zero)

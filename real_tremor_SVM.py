@@ -20,81 +20,159 @@ def main():
     time = np.array(data[0], dtype='f') / 250  # samples are measured at a rate of 250Hz
     [x_motion, x_motion_mean, x_motion_sigma] = fh.normalise(data[1], True)  # tremor in x axis (feature 1)
     [x_label, x_label_mean, x_label_sigma] = fh.normalise(filtered_data[1], True)  # intended motion in x axis
+    [y_motion, y_motion_mean, y_motion_sigma] = fh.normalise(data[2], True)  # tremor in y axis (feature 1)
+    [y_label, y_label_mean, y_label_sigma] = fh.normalise(filtered_data[2], True)  # intended motion in y axis
+    [z_motion, z_motion_mean, z_motion_sigma] = fh.normalise(data[3], True)  # tremor in z axis (feature 1)
+    [z_label, z_label_mean, z_label_sigma] = fh.normalise(filtered_data[3], True)  # intended motion in z axis
 
     # calculates the rate of change of 3D motion
     x_velocity = fh.normalise(fh.calc_delta(time, x_motion))  # (feature 2)
+    y_velocity = fh.normalise(fh.calc_delta(time, y_motion))  # (feature 2)
+    z_velocity = fh.normalise(fh.calc_delta(time, z_motion))  # (feature 2)
 
     x_features = [x_motion, x_velocity]
+    y_features = [y_motion, y_velocity]
+    z_features = [z_motion, z_velocity]
 
     # finds the optimum value for C (regularisation parameter)
-    # [horizon, C_x] = mf.optimise(x_features, x_label)  # only required to run once
+    # [horizon_x, C_x] = mf.optimise(x_features, x_label)  # only required to run once
+    # [horizon_y, C_y] = mf.optimise(y_features, y_label)  # only required to run once
+    # [horizon_z, C_z] = mf.optimise(z_features, z_label)  # only required to run once
     C_x = 21.87  # optimal C value = 21.87
-    horizon = 5  # optimal horizon value = 5
-    print("Regularisation parameter C(x):", C_x, "\nHorizon value:", horizon)
+    horizon_x = 5  # optimal horizon value = 5
+    C_y = 21.87  # optimal C value = 21.87
+    horizon_y = 49  # optimal horizon value = 49
+    C_z = 21.87  # optimal C value = 21.87
+    horizon_z = 1  # optimal horizon value = 1
+    print("Regularisation parameter C(x):", C_x, "\nHorizon value (x):", horizon_x)
+    print("Regularisation parameter C(y):", C_y, "\nHorizon value (y):", horizon_y)
+    print("Regularisation parameter C(z):", C_z, "\nHorizon value (z):", horizon_z)
 
     # calculates the average 3D motion
-    avg_x = fh.normalise(fh.calc_average(x_motion, horizon))  # (feature 3)
+    avg_x = fh.normalise(fh.calc_average(x_motion, horizon_x))  # (feature 3)
     x_features.append(avg_x)
+    avg_y = fh.normalise(fh.calc_average(y_motion, horizon_y))  # (feature 3)
+    y_features.append(avg_y)
+    avg_z = fh.normalise(fh.calc_average(z_motion, horizon_z))  # (feature 3)
+    z_features.append(avg_z)
 
     # combines the features into 1 array
     x_features = np.vstack(x_features).T
+    y_features = np.vstack(y_features).T
+    z_features = np.vstack(z_features).T
     print("\nX Features:\n", x_features)
+    print("Y Features:\n", y_features)
+    print("Z Features:\n", z_features)
 
     # SVM with rbf kernel (x axis)
-    regression = svm.SVR(kernel="rbf", C=C_x)
-    regression.fit(x_features, x_label)
+    x_regression = svm.SVR(kernel="rbf", C=C_x)
+    y_regression = svm.SVR(kernel="rbf", C=C_x)
+    z_regression = svm.SVR(kernel="rbf", C=C_x)
+    # uses the features the fit the regression model to the data
+    x_regression.fit(x_features, x_label)
+    y_regression.fit(y_features, y_label)
+    z_regression.fit(z_features, z_label)
     # predicts intended motion using the original data as an input (scaled to intended motion)
-    predictions = fh.denormalise(regression.predict(x_features), x_label_mean, x_label_sigma)
-    print("\nPredicted output:\n", predictions, "\nActual output:\n", filtered_data[1])
+    x_predictions = fh.denormalise(x_regression.predict(x_features), x_label_mean, x_label_sigma)
+    y_predictions = fh.denormalise(y_regression.predict(y_features), y_label_mean, y_label_sigma)
+    z_predictions = fh.denormalise(z_regression.predict(z_features), z_label_mean, z_label_sigma)
+    print("\nPredicted output (x):\n", x_predictions, "\nActual output (x):\n", filtered_data[1])
+    print("\nPredicted output (y):\n", y_predictions, "\nActual output (y):\n", filtered_data[2])
+    print("\nPredicted output (z):\n", z_predictions, "\nActual output (z):\n", filtered_data[3])
 
     # calculates and prints the normalised RMSE of the model
-    accuracy = mf.calc_accuracy(predictions, filtered_data[1])
-    print("\nAccuracy: " + str(accuracy) + "%")
+    x_accuracy = mf.calc_accuracy(x_predictions, filtered_data[1])
+    y_accuracy = mf.calc_accuracy(y_predictions, filtered_data[2])
+    z_accuracy = mf.calc_accuracy(z_predictions, filtered_data[3])
+    print("\nAccuracy (x): " + str(x_accuracy) + "%")
+    print("Accuracy (y): " + str(y_accuracy) + "%")
+    print("Accuracy (z): " + str(z_accuracy) + "%\n")
+
     # denormalises the data (to its original scale)
     x_motion = fh.denormalise(x_motion, x_motion_mean, x_motion_sigma)
     x_label = fh.denormalise(x_label, x_label_mean, x_label_sigma)
+    y_motion = fh.denormalise(y_motion, y_motion_mean, y_motion_sigma)
+    y_label = fh.denormalise(y_label, y_label_mean, y_label_sigma)
+    z_motion = fh.denormalise(z_motion, z_motion_mean, z_motion_sigma)
+    z_label = fh.denormalise(z_label, z_label_mean, z_label_sigma)
 
     # gets the tremor component by subtracting from the voluntary motion
-    actual_tremor = np.subtract(x_motion, x_label)
-    predicted_tremor = np.subtract(predictions, x_label)
-    tremor_error = np.subtract(actual_tremor, predicted_tremor)
+    x_actual_tremor = np.subtract(x_motion, x_label)
+    x_predicted_tremor = np.subtract(x_predictions, x_label)
+    x_tremor_error = np.subtract(x_actual_tremor, x_predicted_tremor)
+    y_actual_tremor = np.subtract(y_motion, y_label)
+    y_predicted_tremor = np.subtract(y_predictions, y_label)
+    y_tremor_error = np.subtract(y_actual_tremor, y_predicted_tremor)
+    z_actual_tremor = np.subtract(z_motion, z_label)
+    z_predicted_tremor = np.subtract(z_predictions, z_label)
+    z_tremor_error = np.subtract(z_actual_tremor, z_predicted_tremor)
     # calculates and prints the normalised RMSE percentage of the tremor component
-    tremor_accuracy = mf.calc_accuracy(predicted_tremor, actual_tremor)
-    print("Tremor accuracy: " + str(tremor_accuracy) + "%")
+    x_tremor_accuracy = mf.calc_accuracy(x_predicted_tremor, x_actual_tremor)
+    y_tremor_accuracy = mf.calc_accuracy(y_predicted_tremor, y_actual_tremor)
+    z_tremor_accuracy = mf.calc_accuracy(z_predicted_tremor, z_actual_tremor)
+    print("Tremor accuracy (x): " + str(x_tremor_accuracy) + "%")
+    print("Tremor accuracy (y): " + str(y_tremor_accuracy) + "%")
+    print("Tremor accuracy (z): " + str(z_tremor_accuracy) + "%")
 
     # puts all features in a list for passing to the plot function
-    features = [
+    x_features = [
         [fh.normalise(x_motion), "Motion (x)"],
         [avg_x, "Average motion (x)"],
         [x_velocity, "Velocity (x)"],
     ]
-    # puts tremor component data in a list
-    tremors = [
-        [actual_tremor, "Actual tremor (x)"],
-        [predicted_tremor, "Predicted tremor (x)"],
-        [tremor_error, "Tremor error (x)"]
+    y_features = [
+        [fh.normalise(y_motion), "Motion (y)"],
+        [avg_y, "Average motion (y)"],
+        [y_velocity, "Velocity (y)"],
+    ]
+    z_features = [
+        [fh.normalise(z_motion), "Motion (z)"],
+        [avg_z, "Average motion (z)"],
+        [z_velocity, "Velocity (z)"],
+    ]
+    # puts the tremor component data in lists
+    x_tremors = [
+        [x_actual_tremor, "Actual tremor (x)"],
+        [x_predicted_tremor, "Predicted tremor (x)"],
+        [x_tremor_error, "Tremor error (x)"]
+    ]
+    y_tremors = [
+        [y_actual_tremor, "Actual tremor (y)"],
+        [y_predicted_tremor, "Predicted tremor (y)"],
+        [y_tremor_error, "Tremor error (y)"]
+    ]
+    z_tremors = [
+        [z_actual_tremor, "Actual tremor (z)"],
+        [z_predicted_tremor, "Predicted tremor (z)"],
+        [z_tremor_error, "Tremor error (z)"]
     ]
 
-    plot_model(time, x_motion, x_label, predictions)  # plots SVR model (x axis)
-    plot_data(time, tremors, "X motion (mm)")  # plots the tremor components (x axis) in a separate graph
-    plot_data(time, features, "X motion (n)")  # plots the features (x axis) in a separate graph
+    plot_model(time, x_motion, x_label, x_predictions, "X motion (mm)")  # plots SVR model (x axis)
+    plot_model(time, y_motion, y_label, y_predictions, "Y motion (mm)")  # plots SVR model (y axis)
+    plot_model(time, z_motion, z_label, z_predictions, "Z motion (mm)")  # plots SVR model (z axis)
+    plot_data(time, x_tremors, "X motion (mm)")  # plots the tremor components (x axis) in a separate graph
+    plot_data(time, y_tremors, "Y motion (mm)")  # plots the tremor components (y axis) in a separate graph
+    plot_data(time, z_tremors, "Z motion (mm)")  # plots the tremor components (z axis) in a separate graph
+    plot_data(time, x_features, "X motion (n)")  # plots the features (x axis) in a separate graph
+    plot_data(time, y_features, "Y motion (n)")  # plots the features (y axis) in a separate graph
+    plot_data(time, z_features, "Z motion (n)")  # plots the features (z axis) in a separate graph
 
 
 # plots the real tremor data and SVM model (x axis)
-def plot_model(time, input_motion, label, predictions):
+def plot_model(time, input_motion, label, predictions, y_axis_label):
     # splits plot window into 2 graphs
     fig, axes = plt.subplots(2)
 
     # plots data
     axes[0].plot(time, input_motion, label="Noisy data with tremor")
     axes[0].plot(time, label, label="Intended movement without tremor")
-    axes[0].set(ylabel="X motion (mm)")
+    axes[0].set(ylabel=y_axis_label)
     axes[0].legend()
 
     # plots SVM regression model
     axes[1].plot(time, predictions, label="SVM regression model")
     axes[1].plot(time, label, label="Intended movement without tremor")
-    axes[1].set(ylabel="X motion (mm)")
+    axes[1].set(ylabel=y_axis_label)
     axes[1].set(xlabel="Time (s)")
     axes[1].legend()
 
