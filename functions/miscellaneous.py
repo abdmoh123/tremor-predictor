@@ -51,8 +51,8 @@ def calc_accuracy(predicted, actual_output):
     rms_error = mean_squared_error(actual_output, predicted, squared=False)  # calculates the RMS error
     nrms_error = rms_error / np.std(actual_output)  # normalises the RMSE using the standard deviation
     # clips the output to 0 (minimum value is 0%)
-    if nrms_error > 1:
-        return 0
+    # if nrms_error > 1:
+    #     return 0
     return 100 * (1 - nrms_error)  # converts the normalised RMSE to a percentage
 
 
@@ -67,6 +67,8 @@ def calc_tremor_accuracy(input_motion, predictions, voluntary_motion):
 
 # finds the optimal regularisation parameter and average horizon for an SVM regression model
 def optimise(features, labels):
+    print("Optimising...")
+
     horizon = 1  # regularisation parameter (starts at 1 to prevent division by zero)
     max_horizon = 50  # limit for the horizon loop
     horizon_increment = 2
@@ -99,6 +101,9 @@ def optimise(features, labels):
             # calculates the percentage accuracy of the model
             temp_accuracy = calc_tremor_accuracy(features[0], predictions, labels)  # features[0] being original input
 
+            # allows the program to optimise the model even if the accuracies are negative
+            if (temp_accuracy < 0) & (accuracy == 0):
+                accuracy = temp_accuracy
             # horizon is only updated if the new value gives a more accurate model
             if temp_accuracy >= accuracy:
                 accuracy = temp_accuracy
