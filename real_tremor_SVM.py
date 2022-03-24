@@ -25,9 +25,9 @@ def main():
     [z_motion, z_motion_mean, z_motion_sigma] = fh.normalise(data[3], True)  # tremor in z axis (feature 1)
     [z_label, z_label_mean, z_label_sigma] = fh.normalise(filtered_data[3], True)  # intended motion in z axis
 
-    x_prev_motion = fh.shift(x_motion, 1)  # uses the previous data element as a feature (0 if none)
-    y_prev_motion = fh.shift(y_motion, 1)  # uses the previous data element as a feature (0 if none)
-    z_prev_motion = fh.shift(z_motion, 1)  # uses the previous data element as a feature (0 if none)
+    x_prev_motion = fh.shift(x_motion, 1)  # uses the past data as a feature
+    y_prev_motion = fh.shift(y_motion, 1)  # uses the past data as a feature
+    z_prev_motion = fh.shift(z_motion, 1)  # uses the past data as a feature
 
     # calculates the rate of change of 3D motion
     x_velocity = fh.normalise(fh.calc_delta(time, x_motion))  # (feature 2)

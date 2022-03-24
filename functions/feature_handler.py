@@ -1,6 +1,8 @@
 import math
 
 import numpy as np
+from sklearn import svm
+from sklearn.metrics import mean_squared_error
 
 import functions.miscellaneous as mf
 
@@ -35,6 +37,35 @@ def calc_average(feature_list, horizon):
                 temp_array = feature_list[(i - horizon_delta):(i + horizon_delta + 1)]
         avg_array.append(sum(temp_array) / len(temp_array))  # saves average to the array
     return avg_array
+
+
+# finds the best value for how far back the previous motion feature should be
+def optimise_prev_motion(input_motion, labels, max_shift_value=10, C=1):
+    rms_error = 0
+    shift_value = 1
+
+    temp_shift_value = shift_value
+    while temp_shift_value <= max_shift_value:
+        # shifts the input motion by a set amount to get the previous motion as a feature
+        new_data = shift(input_motion, temp_shift_value)
+
+        # puts the features (including average) in an array ready for SVR fitting
+        features = np.vstack([input_motion, new_data]).T
+
+        # SVM with rbf kernel
+        regression = svm.SVR(kernel="rbf", C=C)
+        regression.fit(features, labels)
+        predictions = regression.predict(features)
+
+        # calculates the rms error of the model
+        temp_rmse = mean_squared_error(input_motion, predictions, squared=False)  # calculates the RMS error
+
+        # shift value is only updated if the new value gives a more accurate model
+        if temp_rmse < rms_error:
+            rms_error = temp_rmse
+            shift_value = temp_shift_value
+        temp_shift_value += 1  # increments the shift value
+    return shift_value  # returns the optimal shift value
 
 
 # normalises a list to be between -1 and 1
