@@ -1,4 +1,7 @@
 import math
+
+import numpy as np
+
 import functions.miscellaneous as mf
 
 
@@ -49,3 +52,14 @@ def normalise(data, return_averages=False):
 # reverses the normalisation
 def denormalise(data, mean, sigma):
     return [(value * sigma) + mean for value in data]
+
+
+# shifts values in an array using np.roll
+def shift(data, shift_value):
+    new_data = np.roll(data, shift_value)
+    # fills up new shifted slots with 0 (beginning or end of array)
+    if shift_value > 0:
+        np.put(new_data, range(shift_value), 0)  # fills the beginning
+    elif shift_value < 0:
+        np.put(new_data, range(len(new_data) - shift_value, len(new_data)), 0)  # fills the end
+    return new_data

@@ -67,8 +67,6 @@ def calc_tremor_accuracy(input_motion, predictions, voluntary_motion):
 
 # finds the optimal regularisation parameter and average horizon for an SVM regression model
 def optimise(features, labels):
-    print("Optimising...")
-
     horizon = 1  # regularisation parameter (starts at 1 to prevent division by zero)
     max_horizon = 50  # limit for the horizon loop
     horizon_increment = 2
