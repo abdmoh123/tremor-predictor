@@ -34,17 +34,12 @@ def main():
     y_features = [y_motion, y_velocity]
     z_features = [z_motion, z_velocity]
 
-    # finds the best shift values for making the past_motion features
-    x_shift_value = fh.optimise_past_motion(x_features, x_label)
-    y_shift_value = fh.optimise_past_motion(y_features, y_label)
-    z_shift_value = fh.optimise_past_motion(z_features, z_label)
-    print("Shift values:\nX:", x_shift_value, "\nY:", y_shift_value, "\nZ:", z_shift_value)
     # uses the past data as a feature
-    x_past_motion = fh.shift(x_motion, x_shift_value)
+    x_past_motion = fh.shift(x_motion, 1)
     x_features.append(x_past_motion)
-    y_past_motion = fh.shift(y_motion, y_shift_value)
+    y_past_motion = fh.shift(y_motion, 1)
     y_features.append(y_past_motion)
-    z_past_motion = fh.shift(z_motion, z_shift_value)
+    z_past_motion = fh.shift(z_motion, 1)
     z_features.append(z_past_motion)
 
     # finds the optimum value for C (regularisation parameter)

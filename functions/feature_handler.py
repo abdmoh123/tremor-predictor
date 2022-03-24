@@ -8,15 +8,16 @@ import functions.miscellaneous as mf
 
 
 # finds the change in tremor output
-def calc_delta(time, feature):
+def calc_delta(time, feature, index_difference=1):
     delta_x = []
-    t = time[1] - time[0]  # gets the time increment (delta t)
+
+    t = (time[1] - time[0]) * index_difference  # gets the time increment (delta t)
     for i in range(len(feature)):
         # if statement prevents index out of bounds exception
-        if i > 0:
-            delta_x.append((feature[i] - feature[i - 1]) / t)
+        if i > (index_difference - 1):
+            delta_x.append((feature[i] - feature[i - index_difference]) / t)
         else:
-            delta_x.append(0)
+            delta_x.append(feature[i] - feature[0])
     return delta_x
 
 
