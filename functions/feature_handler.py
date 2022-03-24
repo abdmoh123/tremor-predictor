@@ -10,7 +10,6 @@ import functions.miscellaneous as mf
 # finds the change in tremor output
 def calc_delta(time, feature, index_difference=1):
     delta_x = []
-
     t = (time[1] - time[0]) * index_difference  # gets the time increment (delta t)
     for i in range(len(feature)):
         # if statement prevents index out of bounds exception

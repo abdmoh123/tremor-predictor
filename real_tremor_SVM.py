@@ -94,9 +94,9 @@ def main():
     x_accuracy = mf.calc_accuracy(x_predictions, filtered_data[1])
     y_accuracy = mf.calc_accuracy(y_predictions, filtered_data[2])
     z_accuracy = mf.calc_accuracy(z_predictions, filtered_data[3])
-    print("\nAccuracy (x): " + str(x_accuracy) + "%")
-    print("Accuracy (y): " + str(y_accuracy) + "%")
-    print("Accuracy (z): " + str(z_accuracy) + "%\n")
+    print("\nAccuracy (x): " + str(100 * (1 - x_accuracy)) + "%")
+    print("Accuracy (y): " + str(100 * (1 - y_accuracy)) + "%")
+    print("Accuracy (z): " + str(100 * (1 - z_accuracy)) + "%\n")
 
     # denormalises the data (to its original scale)
     x_motion = fh.denormalise(x_motion, x_motion_mean, x_motion_sigma)
@@ -120,9 +120,9 @@ def main():
     x_tremor_accuracy = mf.calc_accuracy(x_predicted_tremor, x_actual_tremor)
     y_tremor_accuracy = mf.calc_accuracy(y_predicted_tremor, y_actual_tremor)
     z_tremor_accuracy = mf.calc_accuracy(z_predicted_tremor, z_actual_tremor)
-    print("Tremor accuracy (x): " + str(x_tremor_accuracy) + "%")
-    print("Tremor accuracy (y): " + str(y_tremor_accuracy) + "%")
-    print("Tremor accuracy (z): " + str(z_tremor_accuracy) + "%")
+    print("Tremor accuracy (x): " + str(100 * (1 - x_tremor_accuracy)) + "%")
+    print("Tremor accuracy (y): " + str(100 * (1 - y_tremor_accuracy)) + "%")
+    print("Tremor accuracy (z): " + str(100 * (1 - z_tremor_accuracy)) + "%")
 
     # puts all features in a list for passing to the plot function
     x_features = [

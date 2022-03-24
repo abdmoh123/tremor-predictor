@@ -46,22 +46,19 @@ def find_lowest(features, magnitude=False):
     return min_value
 
 
-# calculates the accuracy of the model using root mean squared error
+# calculates the normalised RMS error of the overall model
 def calc_accuracy(predicted, actual_output):
     rms_error = mean_squared_error(actual_output, predicted, squared=False)  # calculates the RMS error
     nrms_error = rms_error / np.std(actual_output)  # normalises the RMSE using the standard deviation
-    # clips the output to 0 (minimum value is 0%)
-    # if nrms_error > 1:
-    #     return 0
-    return 100 * (1 - nrms_error)  # converts the normalised RMSE to a percentage
+    return nrms_error
 
 
+# calculates the normalised RMS of the tremor component of the model
 def calc_tremor_accuracy(input_motion, predictions, voluntary_motion):
     # gets the tremor component by subtracting from the voluntary motion
     actual_tremor = np.subtract(input_motion, voluntary_motion)
     predicted_tremor = np.subtract(input_motion, predictions)
-
-    # calculates and returns the normalised RMSE percentage of the tremor component
+    # calculates and returns the normalised RMSE of the tremor component
     return calc_accuracy(predicted_tremor, actual_tremor)
 
 
@@ -75,7 +72,7 @@ def optimise(features, labels):
     max_C = 30  # limit for the C loop
     C_increment = 3
 
-    accuracy = 0  # initialised as 0 because it will only go up
+    rms_error = 100  # initialised as a large value
 
     temp_horizon = horizon  # temp value for iteration
     # loop evaluates models repeatedly to find optimal horizon value
@@ -97,14 +94,11 @@ def optimise(features, labels):
             predictions = regression.predict(temp_features)
 
             # calculates the percentage accuracy of the model
-            temp_accuracy = calc_tremor_accuracy(features[0], predictions, labels)  # features[0] being original input
+            temp_rmse = calc_tremor_accuracy(features[0], predictions, labels)  # features[0] being original input
 
-            # allows the program to optimise the model even if the accuracies are negative
-            if (temp_accuracy < 0) & (accuracy == 0):
-                accuracy = temp_accuracy
             # horizon is only updated if the new value gives a more accurate model
-            if temp_accuracy >= accuracy:
-                accuracy = temp_accuracy
+            if temp_rmse < rms_error:
+                rms_error = temp_rmse
                 horizon = temp_horizon
                 C = temp_C
             temp_C *= C_increment  # C is multiplied with every loop (to give estimate optimum)
