@@ -25,18 +25,27 @@ def main():
     [z_motion, z_motion_mean, z_motion_sigma] = fh.normalise(data[3], True)  # tremor in z axis (feature 1)
     [z_label, z_label_mean, z_label_sigma] = fh.normalise(filtered_data[3], True)  # intended motion in z axis
 
-    x_prev_motion = fh.shift(x_motion, 1)  # uses the past data as a feature
-    y_prev_motion = fh.shift(y_motion, 1)  # uses the past data as a feature
-    z_prev_motion = fh.shift(z_motion, 1)  # uses the past data as a feature
-
     # calculates the rate of change of 3D motion
     x_velocity = fh.normalise(fh.calc_delta(time, x_motion))  # (feature 2)
     y_velocity = fh.normalise(fh.calc_delta(time, y_motion))  # (feature 2)
     z_velocity = fh.normalise(fh.calc_delta(time, z_motion))  # (feature 2)
 
-    x_features = [x_motion, x_velocity, x_prev_motion]
-    y_features = [y_motion, y_velocity, y_prev_motion]
-    z_features = [z_motion, z_velocity, z_prev_motion]
+    x_features = [x_motion, x_velocity]
+    y_features = [y_motion, y_velocity]
+    z_features = [z_motion, z_velocity]
+
+    # finds the best shift values for making the past_motion features
+    x_shift_value = fh.optimise_past_motion(x_features, x_label)
+    y_shift_value = fh.optimise_past_motion(y_features, y_label)
+    z_shift_value = fh.optimise_past_motion(z_features, z_label)
+    print("Shift values:\nX:", x_shift_value, "\nY:", y_shift_value, "\nZ:", z_shift_value)
+    # uses the past data as a feature
+    x_past_motion = fh.shift(x_motion, x_shift_value)
+    x_features.append(x_past_motion)
+    y_past_motion = fh.shift(y_motion, y_shift_value)
+    y_features.append(y_past_motion)
+    z_past_motion = fh.shift(z_motion, z_shift_value)
+    z_features.append(z_past_motion)
 
     # finds the optimum value for C (regularisation parameter)
     print("Optimising models...")
@@ -124,19 +133,19 @@ def main():
     x_features = [
         [fh.normalise(x_motion), "Motion (x)"],
         [avg_x, "Average motion (x)"],
-        [x_prev_motion, "Previous motion (x)"],
+        [x_past_motion, "Past motion (x)"],
         [x_velocity, "Velocity (x)"]
     ]
     y_features = [
         [fh.normalise(y_motion), "Motion (y)"],
         [avg_y, "Average motion (y)"],
-        [y_prev_motion, "Previous motion (y)"],
+        [y_past_motion, "Past motion (y)"],
         [y_velocity, "Velocity (y)"]
     ]
     z_features = [
         [fh.normalise(z_motion), "Motion (z)"],
         [avg_z, "Average motion (z)"],
-        [z_prev_motion, "Previous motion (z)"],
+        [z_past_motion, "Past motion (z)"],
         [z_velocity, "Velocity (z)"]
     ]
     # puts the tremor component data in lists

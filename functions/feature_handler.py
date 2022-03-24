@@ -21,45 +21,47 @@ def calc_delta(time, feature):
 
 
 # calculates the average of every [horizon] values in an array
-def calc_average(feature_list, horizon):
+def calc_average(features, horizon):
     avg_array = []
-    for i in range(len(feature_list)):
+    for i in range(len(features)):
         # ensures the average is still calculated correctly at the beginning of the feature list
         if (2 * i) < (horizon - 1):
-            temp_array = feature_list[0:(2 * i + 1)]
+            temp_array = features[0:(2 * i + 1)]
         else:
             # the correct values are selected (i in the middle) even if the horizon is even
             if horizon % 2 == 0:
                 horizon_delta = int(math.floor(horizon / 2))
-                temp_array = feature_list[(i - horizon_delta):(i + horizon_delta)]
+                temp_array = features[(i - horizon_delta):(i + horizon_delta)]
             else:
                 horizon_delta = int(math.floor(horizon / 2))
-                temp_array = feature_list[(i - horizon_delta):(i + horizon_delta + 1)]
+                temp_array = features[(i - horizon_delta):(i + horizon_delta + 1)]
         avg_array.append(sum(temp_array) / len(temp_array))  # saves average to the array
     return avg_array
 
 
-# finds the best value for how far back the previous motion feature should be
-def optimise_prev_motion(input_motion, labels, max_shift_value=10, C=1):
+# finds the best value for how far back the past motion feature should be
+def optimise_past_motion(features, labels, max_shift_value=10, C=1):
+    input_motion = features[0]
     rms_error = 0
     shift_value = 1
 
     temp_shift_value = shift_value
     while temp_shift_value <= max_shift_value:
-        # shifts the input motion by a set amount to get the previous motion as a feature
-        new_data = shift(input_motion, temp_shift_value)
+        # shifts the input motion by a set amount to get the past motion as a feature
+        shifted_input = shift(input_motion, temp_shift_value)
 
-        # puts the features (including average) in an array ready for SVR fitting
-        features = np.vstack([input_motion, new_data]).T
+        # puts the features (including shifted_input) in an array ready for SVR fitting
+        temp_features = list(features)
+        temp_features.append(shifted_input)
+        temp_features = np.vstack(temp_features).T
 
         # SVM with rbf kernel
         regression = svm.SVR(kernel="rbf", C=C)
-        regression.fit(features, labels)
-        predictions = regression.predict(features)
+        regression.fit(temp_features, labels)
+        predictions = regression.predict(temp_features)
 
         # calculates the rms error of the model
         temp_rmse = mean_squared_error(input_motion, predictions, squared=False)  # calculates the RMS error
-
         # shift value is only updated if the new value gives a more accurate model
         if temp_rmse < rms_error:
             rms_error = temp_rmse
