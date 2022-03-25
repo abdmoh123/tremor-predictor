@@ -14,15 +14,15 @@ def main():
     file_name = "./data/real_tremor_data.csv"
 
     # reads data into memory and filters it
-    data = read_data(file_name, 200, 4000)  # real tremor data (t, x, y, z, grip force)
-    filtered_data = filter_data(data)  # filters data to get an estimate of intended movement (label)
+    training_data = read_data(file_name, 200, 4000)  # real tremor data (t, x, y, z, grip force)
+    filtered_data = filter_data(training_data)  # filters data to get an estimate of intended movement (label)
 
-    time = np.array(data[0], dtype='f') / 250  # samples are measured at a rate of 250Hz
-    [x_motion, x_motion_mean, x_motion_sigma] = fh.normalise(data[1], True)  # tremor in x axis (feature 1)
+    time = np.array(training_data[0], dtype='f') / 250  # samples are measured at a rate of 250Hz
+    [x_motion, x_motion_mean, x_motion_sigma] = fh.normalise(training_data[1], True)  # tremor in x axis (feature 1)
     [x_label, x_label_mean, x_label_sigma] = fh.normalise(filtered_data[1], True)  # intended motion in x axis
-    [y_motion, y_motion_mean, y_motion_sigma] = fh.normalise(data[2], True)  # tremor in y axis (feature 1)
+    [y_motion, y_motion_mean, y_motion_sigma] = fh.normalise(training_data[2], True)  # tremor in y axis (feature 1)
     [y_label, y_label_mean, y_label_sigma] = fh.normalise(filtered_data[2], True)  # intended motion in y axis
-    [z_motion, z_motion_mean, z_motion_sigma] = fh.normalise(data[3], True)  # tremor in z axis (feature 1)
+    [z_motion, z_motion_mean, z_motion_sigma] = fh.normalise(training_data[3], True)  # tremor in z axis (feature 1)
     [z_label, z_label_mean, z_label_sigma] = fh.normalise(filtered_data[3], True)  # intended motion in z axis
 
     # calculates the rate of change of 3D motion
@@ -36,24 +36,24 @@ def main():
 
     # uses the past data as a feature
     x_past_motion = fh.shift(x_motion, 1)
-    x_features.append(x_past_motion)
     y_past_motion = fh.shift(y_motion, 1)
-    y_features.append(y_past_motion)
     z_past_motion = fh.shift(z_motion, 1)
+    x_features.append(x_past_motion)
+    y_features.append(y_past_motion)
     z_features.append(z_past_motion)
 
     # finds the optimum value for C (regularisation parameter)
     print("Optimising models...")
-    # [horizon_x, C_x] = mf.optimise(x_features, x_label)  # only required to run once
-    # [horizon_y, C_y] = mf.optimise(y_features, y_label)  # only required to run once
-    # [horizon_z, C_z] = mf.optimise(z_features, z_label)  # only required to run once
+    [horizon_x, C_x] = mf.optimise(x_features, x_label)  # only required to run once
+    [horizon_y, C_y] = mf.optimise(y_features, y_label)  # only required to run once
+    [horizon_z, C_z] = mf.optimise(z_features, z_label)  # only required to run once
     print("Done!")
-    C_x = 0.81
-    horizon_x = 13
-    C_y = 0.81
-    horizon_y = 21
-    C_z = 21.87
-    horizon_z = 3
+    # C_x = 0.81
+    # horizon_x = 15
+    # C_y = 0.81
+    # horizon_y = 49
+    # C_z = 2.43
+    # horizon_z = 1
     print("Regularisation parameter C(x):", C_x, "\nHorizon value (x):", horizon_x)
     print("Regularisation parameter C(y):", C_y, "\nHorizon value (y):", horizon_y)
     print("Regularisation parameter C(z):", C_z, "\nHorizon value (z):", horizon_z)

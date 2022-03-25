@@ -89,10 +89,16 @@ def denormalise(data, mean, sigma):
 
 # shifts values in an array using np.roll
 def shift(data, shift_value):
+    # prevents index out of bounds error while performing the same function
+    if shift_value > len(data):
+        shift_value -= len(data)
+
     new_data = np.roll(data, shift_value)
-    # fills up new shifted slots with 0 (beginning or end of array)
+    # fills up new shifted slots with the first or last element value (beginning or end of array)
     if shift_value > 0:
-        np.put(new_data, range(shift_value), 0)  # fills the beginning
+        first_element = new_data[shift_value]
+        np.put(new_data, range(shift_value), first_element)  # fills the beginning
     elif shift_value < 0:
-        np.put(new_data, range(len(new_data) - shift_value, len(new_data)), 0)  # fills the end
+        last_element = new_data[len(new_data) + shift_value]
+        np.put(new_data, range(len(new_data) - shift_value, len(new_data)), last_element)  # fills the end
     return new_data
