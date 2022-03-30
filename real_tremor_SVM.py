@@ -24,39 +24,34 @@ def main():
     # training data is assigned
     [x, y, z] = select_normalised_data(training_data)  # normalises and assigns the input motion data
     [fx, fy, fz] = select_normalised_data(filtered_training_data)  # normalises and assigns the voluntary motion data
-
     # motion and labels [0] = X axis, [1] = Y axis, [2] = Z axis
     training_motion = [x[0], y[0], z[0]]
-    motion_mean = [x[1], y[1], z[1]]
-    motion_sigma = [x[2], y[2], z[2]]
     training_label = [fx[0], fy[0], fz[0]]
-    label_mean = [fx[1], fy[1], fz[1]]
-    label_sigma = [fx[2], fy[2], fz[2]]
 
     # calculates the features in a separate function
-    [features, C] = prepare_model(time, training_motion, training_label)
-
+    [training_features, horizon, C] = prepare_model(time, training_motion, training_label)
     # reformats the features for fitting the model
-    x_features = np.vstack(features[0]).T
-    y_features = np.vstack(features[1]).T
-    z_features = np.vstack(features[2]).T
-    print("\nX Features:\n", x_features)
-    print("Y Features:\n", y_features)
-    print("Z Features:\n", z_features)
+    features_array = [
+        np.vstack(training_features[0]).T,  # X
+        np.vstack(training_features[1]).T,  # Y
+        np.vstack(training_features[2]).T  # Z
+    ]
+    print("\nTraining features (x):\n", features_array[0])
+    print("Training features (y):\n", features_array[1])
+    print("Training features (z):\n", features_array[2])
 
     # SVM with rbf kernel (x axis)
     x_regression = svm.SVR(kernel="rbf", C=C[0])
     y_regression = svm.SVR(kernel="rbf", C=C[1])
     z_regression = svm.SVR(kernel="rbf", C=C[2])
     # uses the features the fit the regression model to the data
-    x_regression.fit(x_features, training_label[0])
-    y_regression.fit(y_features, training_label[1])
-    z_regression.fit(z_features, training_label[2])
+    x_regression.fit(features_array[0], training_label[0])
+    y_regression.fit(features_array[1], training_label[1])
+    z_regression.fit(features_array[2], training_label[2])
 
     # 20% of the data is separated and used for testing
     test_data = data[:, int(0.8 * len(data[0])):]  # last 20% of data for testing
     filtered_test_data = filtered_data[:, int(0.8 * len(filtered_data[0])):]  # selects the labels for testing
-
     # test data is assigned
     [xt, yt, zt] = select_normalised_data(test_data)  # normalises and assigns the input motion data
     [fxt, fyt, fzt] = select_normalised_data(filtered_test_data)  # normalises and assigns the voluntary motion data
@@ -70,18 +65,22 @@ def main():
     test_label_sigma = [fxt[2], fyt[2], fzt[2]]
 
     # calculates the features in a separate function
-    [test_features, test_C] = prepare_model(time, test_motion, test_label)
-
+    test_features = prepare_model(time, test_motion, test_label, horizon)
     # reformats the features for fitting the model
-    x_features = np.vstack(test_features[0]).T
-    y_features = np.vstack(test_features[1]).T
-    z_features = np.vstack(test_features[2]).T
+    features_array = [
+        np.vstack(test_features[0]).T,  # X
+        np.vstack(test_features[1]).T,  # Y
+        np.vstack(test_features[2]).T  # Z
+    ]
+    print("\nTest features (x):\n", features_array[0])
+    print("Test features (y):\n", features_array[1])
+    print("Test features (z):\n", features_array[2])
 
     # predicts intended motion using the original data as an input (scaled to intended motion)
     prediction = [
-        fh.denormalise(x_regression.predict(x_features), test_label_mean[0], test_label_sigma[0]),
-        fh.denormalise(y_regression.predict(y_features), test_label_mean[1], test_label_sigma[1]),
-        fh.denormalise(z_regression.predict(z_features), test_label_mean[2], test_label_sigma[2])
+        fh.denormalise(x_regression.predict(features_array[0]), test_label_mean[0], test_label_sigma[0]),
+        fh.denormalise(y_regression.predict(features_array[1]), test_label_mean[1], test_label_sigma[1]),
+        fh.denormalise(z_regression.predict(features_array[2]), test_label_mean[2], test_label_sigma[2])
     ]
     print("\nPredicted output (x):\n", prediction[0], "\nActual output (x):\n", filtered_test_data[1])
     print("\nPredicted output (y):\n", prediction[1], "\nActual output (y):\n", filtered_test_data[2])
@@ -183,7 +182,7 @@ def main():
         plot_data(time, axis, "N-motion")
 
 
-def prepare_model(time, motion, labels):
+def prepare_model(time, motion, labels, horizon=None):
     # calculates the rate of change of 3D motion
     velocity = [  # (feature 2)
         fh.normalise(fh.calc_delta(time, motion[0])),
@@ -198,45 +197,61 @@ def prepare_model(time, motion, labels):
         fh.shift(motion[2], 1)
     ]
 
-    features = [
-        [motion[0], velocity[0], past_motion[0]],
-        [motion[1], velocity[1], past_motion[1]],
-        [motion[2], velocity[2], past_motion[2]]
-    ]
+    # finds the optimum C and horizon values if no horizon values are inputted
+    if horizon is None:
+        features = [
+            [motion[0], velocity[0], past_motion[0]],
+            [motion[1], velocity[1], past_motion[1]],
+            [motion[2], velocity[2], past_motion[2]]
+        ]
 
+        # generates optimal horizon and C values
+        [horizon, C] = optimise_model(features, labels)
+
+        # calculates the average 3D motion
+        average = [  # (feature 4)
+            fh.normalise(fh.calc_average(motion[0], horizon[0])),
+            fh.normalise(fh.calc_average(motion[1], horizon[1])),
+            fh.normalise(fh.calc_average(motion[2], horizon[2]))
+        ]
+        # adds the average feature to the features list
+        for i in range(len(features)):
+            features[i].append(average[i])
+        return features, horizon, C
+    else:
+        # calculates the average 3D motion
+        average = [  # (feature 4)
+            fh.normalise(fh.calc_average(motion[0], horizon[0])),
+            fh.normalise(fh.calc_average(motion[1], horizon[1])),
+            fh.normalise(fh.calc_average(motion[2], horizon[2]))
+        ]
+
+        return [
+            [motion[0], velocity[0], past_motion[0], average[0]],
+            [motion[1], velocity[1], past_motion[1], average[1]],
+            [motion[2], velocity[2], past_motion[2], average[2]]
+        ]
+
+
+def optimise_model(features, labels):
     # finds the optimum value for C (regularisation parameter)
     print("Optimising models...")
     # [horizon_x, C_x] = mf.optimise(features[0], labels[0])  # only required to run once
     # [horizon_y, C_y] = mf.optimise(features[1], labels[1])  # only required to run once
     # [horizon_z, C_z] = mf.optimise(features[2], labels[2])  # only required to run once
     print("Done!")
-    # C_x = 0.81
-    # C_y = 0.81
-    # C_z = 2.43
-    horizon_x = 49
-    horizon_y = 45
-    horizon_z = 43
     C_x = 0.27
     C_y = 2.43
     C_z = 2.43
-    # horizon_x = 21
-    # horizon_y = 25
-    # horizon_z = 1
-    print("Regularisation parameter C(x):", C_x, "\nHorizon value (x):", horizon_x)
-    print("Regularisation parameter C(y):", C_y, "\nHorizon value (y):", horizon_y)
-    print("Regularisation parameter C(z):", C_z, "\nHorizon value (z):", horizon_z)
+    horizon_x = 49
+    horizon_y = 45
+    horizon_z = 43
+    horizon = [horizon_x, horizon_y, horizon_z]
     C = [C_x, C_y, C_z]
-
-    # calculates the average 3D motion
-    average = [  # (feature 4)
-        fh.normalise(fh.calc_average(motion[0], horizon_x)),
-        fh.normalise(fh.calc_average(motion[1], horizon_y)),
-        fh.normalise(fh.calc_average(motion[2], horizon_z))
-    ]
-    # adds the average feature to the features list
-    for i in range(len(features)):
-        features[i].append(average[i])
-    return features, C
+    print("Regularisation parameter C(x):", C[0], "\nHorizon value (x):", horizon[0])
+    print("Regularisation parameter C(y):", C[1], "\nHorizon value (y):", horizon[1])
+    print("Regularisation parameter C(z):", C[2], "\nHorizon value (z):", horizon[2])
+    return horizon, C
 
 
 def select_normalised_data(data):
