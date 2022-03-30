@@ -8,6 +8,8 @@ from sklearn import svm
 # functions that apply to both simulated and real tremor
 import functions.feature_handler as fh
 import functions.miscellaneous as mf
+import functions.evaluator as eva
+import functions.optimiser as op
 
 
 def main():
@@ -88,9 +90,9 @@ def main():
 
     # calculates and prints the normalised RMSE of the model
     accuracy = [
-        mf.calc_accuracy(prediction[0], filtered_test_data[1]),
-        mf.calc_accuracy(prediction[1], filtered_test_data[2]),
-        mf.calc_accuracy(prediction[2], filtered_test_data[3])
+        eva.calc_accuracy(filtered_test_data[1], prediction[0]),
+        eva.calc_accuracy(filtered_test_data[2], prediction[1]),
+        eva.calc_accuracy(filtered_test_data[3], prediction[2])
     ]
     print("\nAccuracy (x): " + str(100 * (1 - accuracy[0])) + "%")
     print("Accuracy (y): " + str(100 * (1 - accuracy[1])) + "%")
@@ -122,9 +124,9 @@ def main():
     tremor_error = np.subtract(actual_tremor, predicted_tremor)
     # calculates and prints the normalised RMSE percentage of the tremor component
     tremor_accuracy = [
-        mf.calc_accuracy(predicted_tremor[0], actual_tremor[0]),  # X
-        mf.calc_accuracy(predicted_tremor[1], actual_tremor[1]),  # Y
-        mf.calc_accuracy(predicted_tremor[2], actual_tremor[2])  # Z
+        eva.calc_accuracy(actual_tremor[0], predicted_tremor[0]),  # X
+        eva.calc_accuracy(actual_tremor[1], predicted_tremor[1]),  # Y
+        eva.calc_accuracy(actual_tremor[2], predicted_tremor[2])  # Z
     ]
     print("Tremor accuracy (x): " + str(100 * (1 - tremor_accuracy[0])) + "%")
     print("Tremor accuracy (y): " + str(100 * (1 - tremor_accuracy[1])) + "%")
@@ -236,18 +238,23 @@ def prepare_model(time, motion, labels, horizon=None):
 def optimise_model(features, labels):
     # finds the optimum value for C (regularisation parameter)
     print("Optimising models...")
-    # [horizon_x, C_x] = mf.optimise(features[0], labels[0])  # only required to run once
-    # [horizon_y, C_y] = mf.optimise(features[1], labels[1])  # only required to run once
-    # [horizon_z, C_z] = mf.optimise(features[2], labels[2])  # only required to run once
+    C = [  # only required to run once
+        op.optimise_c(features[0], labels[0]),  # X
+        op.optimise_c(features[1], labels[1]),  # Y
+        op.optimise_c(features[2], labels[2])  # Z
+    ]
+    horizon = [  # only required to run once
+        op.optimise_parameter(features[0], labels[0], "horizon"),  # X
+        op.optimise_parameter(features[1], labels[1], "horizon"),  # Y
+        op.optimise_parameter(features[2], labels[2], "horizon")  # Z
+    ]
     print("Done!")
-    C_x = 0.27
-    C_y = 2.43
-    C_z = 2.43
-    horizon_x = 49
-    horizon_y = 45
-    horizon_z = 43
-    horizon = [horizon_x, horizon_y, horizon_z]
-    C = [C_x, C_y, C_z]
+
+    # used to save time (optimising is only required once)
+    # C = [0.27, 2.43, 2.43]  # X, Y, Z
+    # horizon = [49, 45, 43]  # X, Y, Z
+
+    # prints the optimised values
     print("Regularisation parameter C(x):", C[0], "\nHorizon value (x):", horizon[0])
     print("Regularisation parameter C(y):", C[1], "\nHorizon value (y):", horizon[1])
     print("Regularisation parameter C(z):", C[2], "\nHorizon value (z):", horizon[2])

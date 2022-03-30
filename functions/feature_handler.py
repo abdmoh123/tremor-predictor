@@ -39,37 +39,6 @@ def calc_average(features, horizon):
     return avg_array
 
 
-# finds the best value for how far back the past motion feature should be
-def optimise_past_motion(features, labels, max_shift_value=10, C=1):
-    input_motion = features[0]
-    rms_error = 0
-    shift_value = 1
-
-    temp_shift_value = shift_value
-    while temp_shift_value <= max_shift_value:
-        # shifts the input motion by a set amount to get the past motion as a feature
-        shifted_input = shift(input_motion, temp_shift_value)
-
-        # puts the features (including shifted_input) in an array ready for SVR fitting
-        temp_features = list(features)
-        temp_features.append(shifted_input)
-        temp_features = np.vstack(temp_features).T
-
-        # SVM with rbf kernel
-        regression = svm.SVR(kernel="rbf", C=C)
-        regression.fit(temp_features, labels)
-        predictions = regression.predict(temp_features)
-
-        # calculates the rms error of the model
-        temp_rmse = mean_squared_error(input_motion, predictions, squared=False)  # calculates the RMS error
-        # shift value is only updated if the new value gives a more accurate model
-        if temp_rmse < rms_error:
-            rms_error = temp_rmse
-            shift_value = temp_shift_value
-        temp_shift_value += 1  # increments the shift value
-    return shift_value  # returns the optimal shift value
-
-
 # normalises a list to be between -1 and 1
 def normalise(data, return_averages=False):
     sigma = (mf.find_highest(data) - mf.find_lowest(data)) / 2  # calculates the standard deviation (range / 2)

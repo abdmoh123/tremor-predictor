@@ -1,10 +1,4 @@
-import numpy as np
-from sklearn import svm
-from sklearn.metrics import mean_squared_error
-
-import functions.feature_handler as fh
-
-
+# validates boundary values of an array/list (prevents errors)
 def check_bounds(l_bound, u_bound, rows):
     # ensures that the lower bound is smaller than the upper bound
     if l_bound >= u_bound:
@@ -44,63 +38,3 @@ def find_lowest(features, magnitude=False):
             if value < min_value:
                 min_value = value
     return min_value
-
-
-# calculates the normalised RMS error of the overall model
-def calc_accuracy(predicted, actual_output):
-    rms_error = mean_squared_error(actual_output, predicted, squared=False)  # calculates the RMS error
-    nrms_error = rms_error / np.std(actual_output)  # normalises the RMSE using the standard deviation
-    return nrms_error
-
-
-# calculates the normalised RMS of the tremor component of the model
-def calc_tremor_accuracy(input_motion, predictions, voluntary_motion):
-    # gets the tremor component by subtracting from the voluntary motion
-    actual_tremor = np.subtract(input_motion, voluntary_motion)
-    predicted_tremor = np.subtract(input_motion, predictions)
-    # calculates and returns the normalised RMSE of the tremor component
-    return calc_accuracy(predicted_tremor, actual_tremor)
-
-
-# finds the optimal regularisation parameter and average horizon for an SVM regression model
-def optimise(features, labels):
-    horizon = 1  # regularisation parameter (starts at 1 to prevent division by zero)
-    max_horizon = 50  # limit for the horizon loop
-    horizon_increment = 2
-
-    C = 0.01  # regularisation parameter
-    max_C = 30  # limit for the C loop
-    C_increment = 3
-
-    rms_error = 100  # initialised as a large value
-
-    temp_horizon = horizon  # temp value for iteration
-    # loop evaluates models repeatedly to find optimal horizon value
-    while temp_horizon <= max_horizon:
-        temp_C = 0.01  # temp value for iteration
-        # loops to find optimal regularisation parameter value (C)
-        while temp_C <= max_C:
-            # calculates the average motion
-            average = fh.normalise(fh.calc_average(features[0], temp_horizon))
-
-            # puts the features (including average) in an array ready for SVR fitting
-            temp_features = list(features)
-            temp_features.append(average)
-            temp_features = np.vstack(temp_features).T
-
-            # SVM with rbf kernel
-            regression = svm.SVR(kernel="rbf", C=temp_C)
-            regression.fit(temp_features, labels)
-            predictions = regression.predict(temp_features)
-
-            # calculates the percentage accuracy of the model
-            temp_rmse = calc_tremor_accuracy(features[0], predictions, labels)  # features[0] being original input
-
-            # horizon is only updated if the new value gives a more accurate model
-            if temp_rmse < rms_error:
-                rms_error = temp_rmse
-                horizon = temp_horizon
-                C = temp_C
-            temp_C *= C_increment  # C is multiplied with every loop (to give estimate optimum)
-        temp_horizon += horizon_increment  # horizon values are incremented in values of 2
-    return horizon, C
