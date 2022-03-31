@@ -1,7 +1,6 @@
 import numpy as np
 from sklearn import svm
 
-import functions.miscellaneous as mf
 import functions.feature_handler as fh
 import functions.evaluator as eva
 

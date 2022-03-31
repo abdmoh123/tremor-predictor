@@ -78,26 +78,6 @@ def main():
     print("Test features (y):\n", features_array[1])
     print("Test features (z):\n", features_array[2])
 
-    # predicts intended motion using the original data as an input (scaled to intended motion)
-    prediction = [
-        fh.denormalise(x_regression.predict(features_array[0]), test_label_mean[0], test_label_sigma[0]),
-        fh.denormalise(y_regression.predict(features_array[1]), test_label_mean[1], test_label_sigma[1]),
-        fh.denormalise(z_regression.predict(features_array[2]), test_label_mean[2], test_label_sigma[2])
-    ]
-    print("\nPredicted output (x):\n", prediction[0], "\nActual output (x):\n", filtered_test_data[1])
-    print("\nPredicted output (y):\n", prediction[1], "\nActual output (y):\n", filtered_test_data[2])
-    print("\nPredicted output (z):\n", prediction[2], "\nActual output (z):\n", filtered_test_data[3])
-
-    # calculates and prints the normalised RMSE of the model
-    accuracy = [
-        eva.calc_accuracy(filtered_test_data[1], prediction[0]),
-        eva.calc_accuracy(filtered_test_data[2], prediction[1]),
-        eva.calc_accuracy(filtered_test_data[3], prediction[2])
-    ]
-    print("\nAccuracy (x): " + str(100 * (1 - accuracy[0])) + "%")
-    print("Accuracy (y): " + str(100 * (1 - accuracy[1])) + "%")
-    print("Accuracy (z): " + str(100 * (1 - accuracy[2])) + "%\n")
-
     # denormalises the data + labels (to its original scale)
     motion = [
         fh.denormalise(test_motion[0], test_motion_mean[0], test_motion_sigma[0]),  # X
@@ -109,6 +89,34 @@ def main():
         fh.denormalise(test_label[1], test_label_mean[1], test_label_sigma[1]),  # Y
         fh.denormalise(test_label[2], test_label_mean[2], test_label_sigma[2])  # Z
     ]
+
+    # predicts intended motion using the original data as an input (scaled to intended motion)
+    prediction = [
+        fh.denormalise(x_regression.predict(features_array[0]), test_label_mean[0], test_label_sigma[0]),
+        fh.denormalise(y_regression.predict(features_array[1]), test_label_mean[1], test_label_sigma[1]),
+        fh.denormalise(z_regression.predict(features_array[2]), test_label_mean[2], test_label_sigma[2])
+    ]
+    # truncates the last part of the predictions that are inaccurate
+    prediction_limit = int(250 * (15.8 - 13))
+    for i in range(len(prediction)):
+        prediction[i] = prediction[i][:prediction_limit]
+        motion[i] = motion[i][:prediction_limit]
+        label[i] = label[i][:prediction_limit]
+        for j in range(len(test_features[i])):
+            test_features[i][j] = test_features[i][j][:prediction_limit]
+    print("\nPredicted output (x):\n", prediction[0], "\nActual output (x):\n", label[0])
+    print("\nPredicted output (y):\n", prediction[1], "\nActual output (y):\n", label[1])
+    print("\nPredicted output (z):\n", prediction[2], "\nActual output (z):\n", label[2])
+
+    # calculates and prints the normalised RMSE of the model
+    accuracy = [
+        eva.calc_accuracy(label[0], prediction[0]),
+        eva.calc_accuracy(label[1], prediction[1]),
+        eva.calc_accuracy(label[2], prediction[2])
+    ]
+    print("\nAccuracy (x): " + str(100 * (1 - accuracy[0])) + "%")
+    print("Accuracy (y): " + str(100 * (1 - accuracy[1])) + "%")
+    print("Accuracy (z): " + str(100 * (1 - accuracy[2])) + "%\n")
 
     # gets the tremor component by subtracting from the voluntary motion
     actual_tremor = [
@@ -171,7 +179,8 @@ def main():
             [tremor_error[2], "Tremor error (z)"]
         ]
     ]
-    time = time[:len(motion[0])]  # time is shortened to match the length of the test data
+    # time is shortened to match the length of the test data
+    time = time[int(0.8 * len(data[0])):int((0.8 * len(data[0])) + prediction_limit)]
     # plots SVR model
     plot_model(time, motion[0], label[0], prediction[0], "X motion (mm)")  # x axis
     plot_model(time, motion[1], label[1], prediction[1], "Y motion (mm)")  # y axis
@@ -237,22 +246,22 @@ def prepare_model(time, motion, labels, horizon=None):
 
 def optimise_model(features, labels):
     # finds the optimum value for C (regularisation parameter)
-    print("Optimising models...")
-    C = [  # only required to run once
-        op.optimise_c(features[0], labels[0]),  # X
-        op.optimise_c(features[1], labels[1]),  # Y
-        op.optimise_c(features[2], labels[2])  # Z
-    ]
-    horizon = [  # only required to run once
-        op.optimise_parameter(features[0], labels[0], "horizon"),  # X
-        op.optimise_parameter(features[1], labels[1], "horizon"),  # Y
-        op.optimise_parameter(features[2], labels[2], "horizon")  # Z
-    ]
-    print("Done!")
+    # print("Optimising models...")
+    # C = [  # only required to run once
+    #     op.optimise_c(features[0], labels[0]),  # X
+    #     op.optimise_c(features[1], labels[1]),  # Y
+    #     op.optimise_c(features[2], labels[2])  # Z
+    # ]
+    # horizon = [  # only required to run once
+    #     op.optimise_parameter(features[0], labels[0], "horizon"),  # X
+    #     op.optimise_parameter(features[1], labels[1], "horizon"),  # Y
+    #     op.optimise_parameter(features[2], labels[2], "horizon")  # Z
+    # ]
+    # print("Done!")
 
     # used to save time (optimising is only required once)
-    # C = [0.27, 2.43, 2.43]  # X, Y, Z
-    # horizon = [49, 45, 43]  # X, Y, Z
+    C = [0.03, 0.01, 0.27]  # X, Y, Z
+    horizon = [37, 33, 35]  # X, Y, Z
 
     # prints the optimised values
     print("Regularisation parameter C(x):", C[0], "\nHorizon value (x):", horizon[0])
