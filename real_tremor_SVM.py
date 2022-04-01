@@ -146,19 +146,22 @@ def main():
             [test_features[0][0], "Motion (x)"],
             [test_features[0][1], "Velocity (x)"],
             [test_features[0][2], "Past motion (x)"],
-            [test_features[0][3], "Average motion (x)"]
+            [test_features[0][3], "Divided motion (x)"],
+            [test_features[0][4], "Average motion (x)"]
         ],
         [
             [test_features[1][0], "Motion (y)"],
             [test_features[1][1], "Velocity (y)"],
             [test_features[1][2], "Past motion (y)"],
-            [test_features[1][3], "Average motion (y)"]
+            [test_features[1][3], "Divided motion (y)"],
+            [test_features[1][4], "Average motion (y)"]
         ],
         [
             [test_features[2][0], "Motion (z)"],
             [test_features[2][1], "Velocity (z)"],
             [test_features[2][2], "Past motion (z)"],
-            [test_features[2][3], "Average motion (z)"]
+            [test_features[2][3], "Divided motion (z)"],
+            [test_features[2][4], "Average motion (z)"]
         ]
     ]
     # puts the tremor component data in lists (tremor | legend)
@@ -195,7 +198,7 @@ def main():
 
 def prepare_model(time, motion, labels, horizon=None):
     # calculates the rate of change of 3D motion
-    velocity = [  # (feature 2)
+    velocity = [  # feature 2
         fh.normalise(fh.calc_delta(time, motion[0])),
         fh.normalise(fh.calc_delta(time, motion[1])),
         fh.normalise(fh.calc_delta(time, motion[2]))
@@ -203,24 +206,30 @@ def prepare_model(time, motion, labels, horizon=None):
 
     # uses the past data as a feature
     past_motion = [  # feature 3
-        fh.shift(motion[0], 1),
-        fh.shift(motion[1], 1),
-        fh.shift(motion[2], 1)
+        fh.normalise(fh.shift(motion[0])),  # X
+        fh.normalise(fh.shift(motion[1])),  # Y
+        fh.normalise(fh.shift(motion[2]))  # Z
+    ]
+
+    divided_motion = [
+        fh.normalise(fh.divide_data(motion[0])),  # X
+        fh.normalise(fh.divide_data(motion[1])),  # Y
+        fh.normalise(fh.divide_data(motion[2]))  # Z
     ]
 
     # finds the optimum C and horizon values if no horizon values are inputted
     if horizon is None:
         features = [
-            [motion[0], velocity[0], past_motion[0]],
-            [motion[1], velocity[1], past_motion[1]],
-            [motion[2], velocity[2], past_motion[2]]
+            [motion[0], velocity[0], past_motion[0], divided_motion[0]],
+            [motion[1], velocity[1], past_motion[1], divided_motion[1]],
+            [motion[2], velocity[2], past_motion[2], divided_motion[2]]
         ]
 
         # generates optimal horizon and C values
         [horizon, C] = optimise_model(features, labels)
 
         # calculates the average 3D motion
-        average = [  # (feature 4)
+        average = [  # feature 4
             fh.normalise(fh.calc_average(motion[0], horizon[0])),
             fh.normalise(fh.calc_average(motion[1], horizon[1])),
             fh.normalise(fh.calc_average(motion[2], horizon[2]))
@@ -231,16 +240,16 @@ def prepare_model(time, motion, labels, horizon=None):
         return features, horizon, C
     else:
         # calculates the average 3D motion
-        average = [  # (feature 4)
+        average = [  # feature 4
             fh.normalise(fh.calc_average(motion[0], horizon[0])),
             fh.normalise(fh.calc_average(motion[1], horizon[1])),
             fh.normalise(fh.calc_average(motion[2], horizon[2]))
         ]
 
         return [
-            [motion[0], velocity[0], past_motion[0], average[0]],
-            [motion[1], velocity[1], past_motion[1], average[1]],
-            [motion[2], velocity[2], past_motion[2], average[2]]
+            [motion[0], velocity[0], past_motion[0], divided_motion[0], average[0]],
+            [motion[1], velocity[1], past_motion[1], divided_motion[1], average[1]],
+            [motion[2], velocity[2], past_motion[2], divided_motion[2], average[2]]
         ]
 
 
