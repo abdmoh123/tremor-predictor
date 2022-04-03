@@ -114,24 +114,21 @@ def main():
             [test_features[0][1], "Velocity (x)"],
             [test_features[0][2], "Acceleration (x)"],
             [test_features[0][3], "Past motion (x)"],
-            [test_features[0][4], "2nd past motion (x)"],
-            [test_features[0][5], "Average motion (x)"]
+            [test_features[0][4], "Average motion (x)"]
         ],
         [
             [test_features[1][0], "Motion (y)"],
             [test_features[1][1], "Velocity (y)"],
             [test_features[1][2], "Acceleration (y)"],
             [test_features[1][3], "Past motion (y)"],
-            [test_features[1][4], "2nd past motion (y)"],
-            [test_features[1][5], "Average motion (y)"]
+            [test_features[1][4], "Average motion (y)"]
         ],
         [
             [test_features[2][0], "Motion (z)"],
             [test_features[2][1], "Velocity (z)"],
             [test_features[2][2], "Acceleration (z)"],
             [test_features[2][3], "Past motion (z)"],
-            [test_features[2][4], "2nd past motion (z)"],
-            [test_features[2][5], "Average motion (z)"]
+            [test_features[2][4], "Average motion (z)"]
         ]
     ]
     # puts the tremor component data in lists (tremor | legend)
@@ -170,7 +167,6 @@ def prepare_model(time, motion, labels, horizon=None):
     velocity = []  # feature 2
     acceleration = []  # feature 3
     past_motion = []  # feature 4
-    past_past_motion = []
     for i in range(len(motion)):
         # calculates the rate of change of 3D motion
         velocity.append(fh.normalise(fh.calc_delta(time, motion[i])))
@@ -178,7 +174,6 @@ def prepare_model(time, motion, labels, horizon=None):
         acceleration.append(fh.normalise(fh.calc_delta(time, velocity[i])))
         # uses the past data as a feature
         past_motion.append(fh.normalise(fh.shift(motion[i])))  # previous value
-        past_past_motion.append(fh.normalise(fh.shift(motion[i], 2)))  # 2nd previous value
 
         # smoothing the velocity and acceleration
         velocity[i] = fh.normalise(fh.calc_average(velocity[i], 5))
@@ -193,8 +188,7 @@ def prepare_model(time, motion, labels, horizon=None):
                 motion[i],
                 velocity[i],
                 acceleration[i],
-                past_motion[i],
-                past_past_motion[i]
+                past_motion[i]
             ])
 
         # generates optimal horizon and C values
@@ -214,8 +208,7 @@ def prepare_model(time, motion, labels, horizon=None):
                 motion[i],
                 velocity[i],
                 acceleration[i],
-                past_motion[i],
-                past_past_motion[i]
+                past_motion[i]
             ])
 
         for i in range(len(motion)):
@@ -228,18 +221,18 @@ def prepare_model(time, motion, labels, horizon=None):
 
 def optimise_model(features, labels):
     # finds the optimum value for C (regularisation parameter)
-    print("Optimising models...")
-    C = []
-    horizon = []
-    # only required to run once
-    for i in range(len(features)):
-        C.append(op.optimise_c(features[i], labels[i]))
-        horizon.append(op.optimise_parameter(features[i], labels[i], "horizon"))
-    print("Done!")
+    # print("Optimising models...")
+    # C = []
+    # horizon = []
+    # # only required to run once
+    # for i in range(len(features)):
+    #     C.append(op.optimise_c(features[i], labels[i]))
+    #     horizon.append(op.optimise_parameter(features[i], labels[i], "horizon"))
+    # print("Done!")
 
     # used to save time (optimising is only required once)
-    # C = [0.81, 0.81, 0.81]  # X, Y, Z
-    # horizon = [11, 27, 35]  # X, Y, Z
+    C = [0.81, 0.81, 0.81]  # X, Y, Z
+    horizon = [11, 27, 35]  # X, Y, Z
 
     # prints the optimised values
     print("Regularisation parameter C(x):", C[0], "\nHorizon value (x):", horizon[0])
