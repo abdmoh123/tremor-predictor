@@ -80,4 +80,4 @@ def normalise(data, return_averages=False):
 
 # reverses the normalisation
 def denormalise(data, mean, sigma):
-    return [(value * sigma) + mean for value in data]
+    return np.multiply(data, sigma) + mean
