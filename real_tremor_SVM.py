@@ -1,16 +1,15 @@
 # libraries imported
 import csv
-import matplotlib.pyplot as plt
 import numpy as np
 from scipy import signal
 from sklearn import svm
-from sklearn.preprocessing import normalize
 
 # functions that apply to both simulated and real tremor
 import functions.feature_handler as fh
 import functions.miscellaneous as mf
 import functions.evaluator as eva
 import functions.optimiser as op
+import functions.plotter as plt
 
 np.set_printoptions(threshold=50)  # shortens long arrays in the console window
 
@@ -108,8 +107,22 @@ def main():
     print("Tremor accuracy (y): " + str(100 * (1 - tremor_accuracy[1])) + "%")
     print("Tremor accuracy (z): " + str(100 * (1 - tremor_accuracy[2])) + "%")
 
+    # puts regression model data in a list
+    model_data = [
+        [motion[0], label[0], prediction[0], "X motion (mm)"],
+        [motion[1], label[1], prediction[1], "Y motion (mm)"],
+        [motion[2], label[2], prediction[2], "Z motion (mm)"]
+    ]
+    model_axes_labels = ["Original signal", "Filtered output", "Predicted output"]
+    # puts the tremor component data in a list
+    tremor_data = [
+        [actual_tremor[0], predicted_tremor[0], tremor_error[0], "X motion (mm)"],
+        [actual_tremor[1], predicted_tremor[1], tremor_error[1], "Y motion (mm)"],
+        [actual_tremor[2], predicted_tremor[2], tremor_error[2], "Z motion (mm)"]
+    ]
+    tremor_axes_labels = ["Actual tremor", "Predicted tremor", "Tremor error"]
     # puts all features in a list for passing to the plot function (feature | legend)
-    plot_features = [
+    features_data = [
         [
             [test_features[0][0], "Motion (x)"],
             [test_features[0][1], "Velocity (x)"],
@@ -132,36 +145,14 @@ def main():
             [test_features[2][4], "Average motion (z)"]
         ]
     ]
-    # puts the tremor component data in lists (tremor | legend)
-    plot_tremors = [
-        [
-            [actual_tremor[0], "Actual tremor (x)"],
-            [predicted_tremor[0], "Predicted tremor (x)"],
-            [tremor_error[0], "Tremor error (x)"]
-        ],
-        [
-            [actual_tremor[1], "Actual tremor (y)"],
-            [predicted_tremor[1], "Predicted tremor (y)"],
-            [tremor_error[1], "Tremor error (y)"]
-        ],
-        [
-            [actual_tremor[2], "Actual tremor (z)"],
-            [predicted_tremor[2], "Predicted tremor (z)"],
-            [tremor_error[2], "Tremor error (z)"]
-        ]
-    ]
+
     # time is shortened to match the length of the test data
     time = time[int(training_testing_ratio * len(data[0])):]
-    # plots SVR model
-    plot_model(time, motion[0], label[0], prediction[0], "X motion (mm)")  # x axis
-    plot_model(time, motion[1], label[1], prediction[1], "Y motion (mm)")  # y axis
-    plot_model(time, motion[2], label[2], prediction[2], "Z motion (mm)")  # z axis
-    # plots the tremor components
-    for axis in plot_tremors:
-        plot_data(time, axis, "Motion (mm)")
+    plt.plot_model(time, model_data, model_axes_labels)  # plots SVR model
+    plt.plot_model(time, tremor_data, tremor_axes_labels)  # plots the tremor components
     # plots the features
-    for axis in plot_features:
-        plot_data(time, axis, "N-motion")
+    for axis in features_data:
+        plt.plot_features(time, axis, "N-motion")
 
 
 def prepare_model(time, motion, labels, horizon=None):
@@ -247,45 +238,6 @@ def select_normalised_data(data):
     y = fh.normalise(data[2], True)  # y axis (feature 1)
     z = fh.normalise(data[3], True)  # z axis (feature 1)
     return x, y, z
-
-
-# plots the real tremor data and SVM model (x axis)
-def plot_model(time, input_motion, label, predictions, y_axis_label):
-    # splits plot window into 2 graphs
-    fig, axes = plt.subplots(2)
-
-    # plots data
-    axes[0].plot(time, input_motion, label="Noisy data with tremor")
-    axes[0].plot(time, label, label="Intended movement without tremor")
-    axes[0].set(ylabel=y_axis_label)
-    axes[0].legend()
-
-    # plots SVM regression model
-    axes[1].plot(time, predictions, label="SVM regression model")
-    axes[1].plot(time, label, label="Intended movement without tremor")
-    axes[1].set(ylabel=y_axis_label)
-    axes[1].set(xlabel="Time (s)")
-    axes[1].legend()
-
-    # displays graphs
-    plt.show()
-
-
-# plots the tremor component of the data and predictions
-def plot_data(time, data, y_axis_label):
-    fig, axes = plt.subplots(len(data))
-
-    # plots tremor data
-    for i in range(len(data)):
-        axes[i].plot(time, data[i][0], label=data[i][1], linewidth=0.5)
-        axes[i].set(ylabel=y_axis_label)
-        axes[i].legend()
-
-    # axes labels and legend
-    axes[len(data) - 1].set(xlabel="Time (s)")
-
-    # displays graphs
-    plt.show()
 
 
 # filters the input data to estimate the intended movement
