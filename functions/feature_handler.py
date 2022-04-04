@@ -3,6 +3,7 @@ import math
 import numpy as np
 
 import functions.miscellaneous as mf
+from sklearn.preprocessing import normalize
 
 
 # finds the change in tremor output
@@ -67,9 +68,9 @@ def divide_data(data, index_difference=1):
 
 # normalises a list to be between -1 and 1
 def normalise(data, return_averages=False):
-    sigma = (mf.find_highest(data) - mf.find_lowest(data)) / 2  # calculates the standard deviation (range / 2)
-    mean = sum(data) / len(data)  # finds the mean of the array
-    norm_data = [(value - mean) / sigma for value in data]  # normalises the values to be between -1 and 1
+    sigma = (np.max(data) - np.min(data)) / 2  # calculates the standard deviation (range / 2)
+    mean = np.mean(data)  # finds the mean of the array
+    norm_data = np.subtract(data, mean) / sigma  # normalises the values to be between -1 and 1
 
     # returns the mean and spread if the function call specified
     if return_averages:

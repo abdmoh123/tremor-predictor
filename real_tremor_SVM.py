@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy import signal
 from sklearn import svm
+from sklearn.preprocessing import normalize
 
 # functions that apply to both simulated and real tremor
 import functions.feature_handler as fh
@@ -169,9 +170,9 @@ def prepare_model(time, motion, labels, horizon=None):
     past_motion = []  # feature 4
     for i in range(len(motion)):
         # calculates the rate of change of 3D motion
-        velocity.append(fh.normalise(fh.calc_delta(time, motion[i])))
+        velocity.append(fh.calc_delta(time, motion[i]))
         # calculates the rate of change of rate of change of 3D motion (rate of change of velocity)
-        acceleration.append(fh.normalise(fh.calc_delta(time, velocity[i])))
+        acceleration.append(fh.calc_delta(time, velocity[i]))
         # uses the past data as a feature
         past_motion.append(fh.normalise(fh.shift(motion[i])))  # previous value
 

@@ -9,32 +9,3 @@ def check_bounds(l_bound, u_bound, rows):
     if (u_bound > len(rows)) | (u_bound <= 0):
         u_bound = len(rows)
     return l_bound, u_bound
-
-
-# iterates through list to find the highest value
-def find_highest(features, magnitude=False):
-    max_value = 0
-    # can find the largest magnitude or the most positive value
-    if magnitude:
-        for value in features:
-            if abs(value) > max_value:
-                max_value = abs(value)
-    else:
-        for value in features:
-            if value > max_value:
-                max_value = value
-    return max_value
-
-
-def find_lowest(features, magnitude=False):
-    min_value = features[0]
-    # can find the smallest magnitude or the most negative value
-    if magnitude:
-        for value in features:
-            if abs(value) < abs(min_value):
-                min_value = abs(value)
-    else:
-        for value in features:
-            if value < min_value:
-                min_value = value
-    return min_value
