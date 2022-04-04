@@ -68,16 +68,16 @@ def divide_data(data, index_difference=1):
 
 # normalises a list to be between -1 and 1
 def normalise(data, return_averages=False):
-    sigma = (np.max(data) - np.min(data)) / 2  # calculates the standard deviation (range / 2)
-    mean = np.mean(data)  # finds the mean of the array
-    norm_data = np.subtract(data, mean) / sigma  # normalises the values to be between -1 and 1
+    sigma = (np.max(data) - np.min(data)) / 2  # calculates the spread of the data (range / 2)
+    mid = (np.max(data) + np.min(data)) / 2  # finds the midpoint of the data
+    norm_data = np.subtract(data, mid) / sigma  # normalises the values to be between -1 and 1
 
     # returns the mean and spread if the function call specified
     if return_averages:
-        return norm_data, mean, sigma
+        return norm_data, mid, sigma
     return norm_data
 
 
 # reverses the normalisation
-def denormalise(data, mean, sigma):
-    return np.multiply(data, sigma) + mean
+def denormalise(data, mid, sigma):
+    return np.multiply(data, sigma) + mid
