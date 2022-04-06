@@ -228,7 +228,8 @@ def optimise_model(features, labels):
     # print("Done!")
 
     # used to save time (optimising is only required once)
-    horizon = [9, 41, 39]  # X, Y, Z
+    # horizon = [9, 41, 39]  # X, Y, Z
+    horizon = [30, 30, 30]  # X, Y, Z
 
     # prints the optimised values
     print("Horizon values [x, y, z]:", horizon)
