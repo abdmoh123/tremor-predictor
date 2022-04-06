@@ -72,7 +72,7 @@ def optimise_parameter(features, labels, parameter):
         predictions = regression.predict(temp_features)
 
         # calculates the normalised RMS error of the model (tremor component)
-        temp_rmse = eva.calc_tremor_accuracy(features[0], predictions, labels)
+        [temp_r2, temp_rmse] = eva.calc_tremor_accuracy(features[0], predictions, labels)
         # final parameter value is only updated if the new value gives a more accurate model
         if temp_rmse < rms_error:
             rms_error = temp_rmse

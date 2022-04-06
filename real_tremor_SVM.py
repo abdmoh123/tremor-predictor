@@ -41,17 +41,19 @@ def main():
     regression = []
     hyperparameters = []
     preset_params = [
-        [10, 0.01, 0.001],  # X
+        [100, 0.01, 0.001],  # X
         [100, 0.01, 0.001],  # Y
         [100, 0.01, 0.001]  # Z
     ]
+    print("Tuning...")
     for i in range(len(training_features)):
         # reformats the features for fitting the model (numpy array)
         axis_features = np.vstack(training_features[i]).T
         # tunes and trains the regression model
-        regression.append(op.tune_model(axis_features, training_label[i]))
-        # regression.append(op.tune_model(axis_features, training_label[i], preset_params))  # to save time
-        hyperparameters.append(regression[i].best_params_)
+        # regression.append(op.tune_model(axis_features, training_label[i]))
+        regression.append(op.tune_model(axis_features, training_label[i], preset_params[i]))  # to save time
+        hyperparameters.append(regression[i].get_params(deep=False))
+    print("Done!")
     print("\nHyperparameters (x, y, z):\n", hyperparameters)
     print("\nTraining features (x, y, z):\n", np.array(training_features))
 
@@ -95,9 +97,9 @@ def main():
     accuracy = []
     for i in range(len(label)):
         accuracy.append(eva.calc_accuracy(label[i], prediction[i]))
-    print("\nAccuracy (x): " + str(100 * (1 - accuracy[0])) + "%")
-    print("Accuracy (y): " + str(100 * (1 - accuracy[1])) + "%")
-    print("Accuracy (z): " + str(100 * (1 - accuracy[2])) + "%\n")
+    print("\nX Accuracy [R2, NRMSE]: " + "[" + str(accuracy[0][0]) + "%" + ", " + str(accuracy[0][1]) + "]")
+    print("Y Accuracy [R2, NRMSE]: " + "[" + str(accuracy[1][0]) + "%" + ", " + str(accuracy[1][1]) + "]")
+    print("Z Accuracy [R2, NRMSE]: " + "[" + str(accuracy[2][0]) + "%" + ", " + str(accuracy[2][1]) + "]")
 
     # gets the tremor component by subtracting from the voluntary motion
     actual_tremor = []
@@ -110,9 +112,9 @@ def main():
         tremor_accuracy.append(eva.calc_accuracy(actual_tremor[i], predicted_tremor[i]))
     tremor_error = np.subtract(actual_tremor, predicted_tremor)
     # converts and prints a the NRMSE in a percentage form
-    print("Tremor accuracy (x): " + str(100 * (1 - tremor_accuracy[0])) + "%")
-    print("Tremor accuracy (y): " + str(100 * (1 - tremor_accuracy[1])) + "%")
-    print("Tremor accuracy (z): " + str(100 * (1 - tremor_accuracy[2])) + "%")
+    print("X Tremor accuracy [R2, NRMSE]: " + "[" + str(tremor_accuracy[0][0]) + "%" + ", " + str(tremor_accuracy[0][1]) + "]")
+    print("Y Tremor accuracy [R2, NRMSE]: " + "[" + str(tremor_accuracy[1][0]) + "%" + ", " + str(tremor_accuracy[1][1]) + "]")
+    print("Z Tremor accuracy [R2, NRMSE]: " + "[" + str(tremor_accuracy[2][0]) + "%" + ", " + str(tremor_accuracy[2][1]) + "]")
 
     # puts regression model data in a list
     model_data = [
