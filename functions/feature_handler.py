@@ -1,9 +1,5 @@
 import math
-
 import numpy as np
-
-import functions.miscellaneous as mf
-from sklearn.preprocessing import normalize
 
 
 # finds the change in tremor output

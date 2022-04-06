@@ -4,6 +4,7 @@ import numpy as np
 from scipy import signal
 from sklearn import svm
 
+
 # functions that apply to both simulated and real tremor
 import functions.feature_handler as fh
 import functions.miscellaneous as mf
@@ -34,19 +35,25 @@ def main():
     training_label = [fx[0], fy[0], fz[0]]
 
     # calculates the features in a separate function
-    [training_features, horizon, C] = prepare_model(time, training_motion, training_label)
+    [training_features, horizon] = prepare_model(time, training_motion, training_label)
 
     # SVM with rbf kernel (x axis)
     regression = []
+    hyperparameters = []
+    preset_params = [
+        [10, 0.01, 0.001],  # X
+        [100, 0.01, 0.001],  # Y
+        [100, 0.01, 0.001]  # Z
+    ]
     for i in range(len(training_features)):
         # reformats the features for fitting the model (numpy array)
         axis_features = np.vstack(training_features[i]).T
-        regression.append(svm.SVR(kernel="rbf", C=C[i]))
-        # uses the features the fit the regression model to the data
-        regression[i].fit(axis_features, training_label[i])
-    print("\nTraining features (x):\n", np.array(training_features[0]))
-    print("Training features (y):\n", np.array(training_features[1]))
-    print("Training features (z):\n", np.array(training_features[2]))
+        # tunes and trains the regression model
+        regression.append(op.tune(axis_features, training_label[i]))
+        # regression.append(op.tune(axis_features, training_label[i], preset_params))  # to save time
+        hyperparameters.append(regression[i].best_params_)
+    print("\nHyperparameters (x, y, z):\n", hyperparameters)
+    print("\nTraining features (x, y, z):\n", np.array(training_features))
 
     # 20% of the data is separated and used for testing
     test_data = data[:, int(training_testing_ratio * len(data[0])):]  # last 20% of data for testing
@@ -184,14 +191,14 @@ def prepare_model(time, motion, labels, horizon=None):
             ])
 
         # generates optimal horizon and C values
-        [horizon, C] = optimise_model(features, labels)
+        horizon = optimise_model(features, labels)
 
         for i in range(len(motion)):
             # calculates the average 3D motion
             average = fh.normalise(fh.calc_average(motion[i], horizon[i]))  # last feature
             # adds the average feature to the features list
             features[i].append(average)
-        return features, horizon, C
+        return features, horizon
     else:
         features = []
         # puts existing features in a list
@@ -213,24 +220,19 @@ def prepare_model(time, motion, labels, horizon=None):
 
 def optimise_model(features, labels):
     # finds the optimum value for C (regularisation parameter)
-    # print("Optimising models...")
-    # C = []
+    # print("Optimising horizons...")
     # horizon = []
     # # only required to run once
     # for i in range(len(features)):
-    #     C.append(op.optimise_c(features[i], labels[i]))
     #     horizon.append(op.optimise_parameter(features[i], labels[i], "horizon"))
     # print("Done!")
 
     # used to save time (optimising is only required once)
-    C = [0.81, 0.81, 0.81]  # X, Y, Z
-    horizon = [11, 27, 35]  # X, Y, Z
+    horizon = [9, 41, 39]  # X, Y, Z
 
     # prints the optimised values
-    print("Regularisation parameter C(x):", C[0], "\nHorizon value (x):", horizon[0])
-    print("Regularisation parameter C(y):", C[1], "\nHorizon value (y):", horizon[1])
-    print("Regularisation parameter C(z):", C[2], "\nHorizon value (z):", horizon[2])
-    return horizon, C
+    print("Horizon values [x, y, z]:", horizon)
+    return horizon
 
 
 def select_normalised_data(data):
