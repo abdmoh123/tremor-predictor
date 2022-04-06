@@ -49,8 +49,8 @@ def main():
         # reformats the features for fitting the model (numpy array)
         axis_features = np.vstack(training_features[i]).T
         # tunes and trains the regression model
-        regression.append(op.tune(axis_features, training_label[i]))
-        # regression.append(op.tune(axis_features, training_label[i], preset_params))  # to save time
+        regression.append(op.tune_model(axis_features, training_label[i]))
+        # regression.append(op.tune_model(axis_features, training_label[i], preset_params))  # to save time
         hyperparameters.append(regression[i].best_params_)
     print("\nHyperparameters (x, y, z):\n", hyperparameters)
     print("\nTraining features (x, y, z):\n", np.array(training_features))
