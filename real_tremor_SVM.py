@@ -40,19 +40,20 @@ def main():
     # SVM with rbf kernel (x axis)
     regression = []
     hyperparameters = []
-    preset_params = [
-        [100, 0.01, 0.001],  # X
-        [100, 0.01, 0.001],  # Y
-        [100, 0.01, 0.001]  # Z
+    preset_params = [  # [C, epsilon]
+        [100, 0.01],  # X
+        [100, 0.01],  # Y
+        [100, 0.01]  # Z
     ]
     print("Tuning...")
     for i in range(len(training_features)):
         # reformats the features for fitting the model (numpy array)
         axis_features = np.vstack(training_features[i]).T
         # tunes and trains the regression model
-        # regression.append(op.tune_model(axis_features, training_label[i]))
-        regression.append(op.tune_model(axis_features, training_label[i], preset_params[i]))  # to save time
-        hyperparameters.append(regression[i].get_params(deep=False))
+        regression.append(op.tune_model(axis_features, training_label[i]))
+        # regression.append(op.tune_model(axis_features, training_label[i], preset_params[i]))  # to save time
+        hyperparameters.append(regression[i].best_params_)
+        # hyperparameters.append(regression[i].get_params(deep=False))  # to save time
     print("Done!")
     print("\nHyperparameters (x, y, z):\n", hyperparameters)
     print("\nTraining features (x, y, z):\n", np.array(training_features))

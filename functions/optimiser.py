@@ -14,7 +14,6 @@ def tune_model(features, labels, parameters=None):
         parameters = {
             'kernel': ['rbf'],
             'C': [0.01, 0.1, 1, 10, 100],
-            'gamma': [0.001, 0.01, 0.1, 1, 10],
             'epsilon': [0.01, 0.1, 1, 10, 100]
         }
         # HalvingGridSearch is used instead of GridSearch to speed up the tuning process
@@ -24,8 +23,7 @@ def tune_model(features, labels, parameters=None):
         regression = svm.SVR(
             kernel="rbf",
             C=parameters[0],
-            epsilon=parameters[1],
-            gamma=parameters[2]
+            epsilon=parameters[1]
         )
     regression.fit(features, labels)  # fit based on R^2 metric (default)
     return regression
