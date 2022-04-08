@@ -2,7 +2,7 @@
 import csv
 import numpy as np
 from scipy import signal
-from sklearn import svm
+from datetime import datetime
 
 
 # functions that apply to both simulated and real tremor
@@ -19,6 +19,7 @@ def main():
     file_name = "./data/real_tremor_data.csv"
     training_testing_ratio = 0.8
 
+    start_time = datetime.now()
     # reads data into memory and filters it
     data = read_data(file_name, 200, 4000)  # real tremor data (t, x, y, z, grip force)
     filtered_data = filter_data(data)  # filters data to get an estimate of intended movement (label)
@@ -26,16 +27,27 @@ def main():
     training_data = data[:, :int(training_testing_ratio * len(data[0]))]  # first 80% of data for training
     filtered_training_data = filtered_data[:, :int(training_testing_ratio * len(filtered_data[0]))]  # training labels
     time = np.array(data[0], dtype='f') / 250  # samples are measured at a rate of 250Hz
+    end_time = datetime.now()
+    # time taken to read and split the data
+    data_reading_time = (end_time - start_time).total_seconds()
 
+    start_time = datetime.now()
     # training data is assigned
     [x, y, z] = select_normalised_data(training_data)  # normalises and assigns the input motion data
     [fx, fy, fz] = select_normalised_data(filtered_training_data)  # normalises and assigns the voluntary motion data
     # motion and labels [0] = X axis, [1] = Y axis, [2] = Z axis
     training_motion = [x[0], y[0], z[0]]
     training_label = [fx[0], fy[0], fz[0]]
+    end_time = datetime.now()
+    # time taken to select and normalise useful training data
+    selecting_training_time = (end_time - start_time).total_seconds()
 
+    start_time = datetime.now()
     # calculates the features in a separate function
     [training_features, horizon] = prepare_model(time, training_motion, training_label)
+    end_time = datetime.now()
+    # time taken to create training features
+    training_features_time = (end_time - start_time).total_seconds()
 
     # SVM with rbf kernel (x axis)
     regression = []
@@ -45,26 +57,31 @@ def main():
         [100, 0.01],  # Y
         [100, 0.01]  # Z
     ]
+    tuned_training_time = []  # time taken to tune and train model (for each axis)
     print("Tuning...")
     for i in range(len(training_features)):
+        start_time = datetime.now()
         # reformats the features for fitting the model (numpy array)
         axis_features = np.vstack(training_features[i]).T
         # tunes and trains the regression model
-        regression.append(op.tune_model(axis_features, training_label[i]))
-        # regression.append(op.tune_model(axis_features, training_label[i], preset_params[i]))  # to save time
-        hyperparameters.append(regression[i].best_params_)
-        # hyperparameters.append(regression[i].get_params(deep=False))  # to save time
+        # regression.append(op.tune_model(axis_features, training_label[i]))
+        regression.append(op.tune_model(axis_features, training_label[i], preset_params[i]))  # to save time
+        end_time = datetime.now()
+        tuned_training_time.append((end_time - start_time).total_seconds())
+
+        # hyperparameters.append(regression[i].best_params_)
+        hyperparameters.append(regression[i].get_params())  # to save time
     print("Done!")
     print("\nHyperparameters (x, y, z):\n", hyperparameters)
     print("\nTraining features (x, y, z):\n", np.array(training_features))
 
+    start_time = datetime.now()
     # 20% of the data is separated and used for testing
     test_data = data[:, int(training_testing_ratio * len(data[0])):]  # last 20% of data for testing
     filtered_test_data = filtered_data[:, int(training_testing_ratio * len(filtered_data[0])):]  # testing labels
     # test data is assigned
     [xt, yt, zt] = select_normalised_data(test_data)  # normalises and assigns the input motion data
     [fxt, fyt, fzt] = select_normalised_data(filtered_test_data)  # normalises and assigns the voluntary motion data
-
     # motion and labels [0] = X axis, [1] = Y axis, [2] = Z axis
     test_motion = [xt[0], yt[0], zt[0]]
     test_motion_mean = [xt[1], yt[1], zt[1]]
@@ -72,14 +89,26 @@ def main():
     test_label = [fxt[0], fyt[0], fzt[0]]
     test_label_mean = [fxt[1], fyt[1], fzt[1]]
     test_label_sigma = [fxt[2], fyt[2], fzt[2]]
+    end_time = datetime.now()
+    # time taken to select and normalise useful test data
+    selecting_test_time = (end_time - start_time).total_seconds()
 
+    start_time = datetime.now()
     # calculates the features in a separate function
     test_features = prepare_model(time, test_motion, test_label, horizon)
+    end_time = datetime.now()
+    # time taken to create test data features
+    test_features_time = (end_time - start_time).total_seconds()
+
     # predicts intended motion using the original data as an input (scaled to intended motion)
     prediction = []
+    predicting_time = []  # time taken to predict voluntary motion (for each axis)
     for i in range(len(test_features)):
+        start_time = datetime.now()
         axis_features = np.vstack(test_features[i]).T   # reformats the features for fitting the model (numpy array)
         prediction.append(fh.denormalise(regression[i].predict(axis_features), test_label_mean[i], test_label_sigma[i]))
+        end_time = datetime.now()
+        predicting_time.append((end_time - start_time).total_seconds())
     print("\nTest features (x):\n", np.array(test_features[0]))
     print("Test features (y):\n", np.array(test_features[1]))
     print("Test features (z):\n", np.array(test_features[2]))
@@ -163,6 +192,28 @@ def main():
     # plots the features
     for axis in features_data:
         plt.plot_features(time, axis, "N-motion")
+
+    # prints performance of the program
+    print(
+        "\nPerformance:\n==================================",
+        "\nTime taken to read data:", data_reading_time,
+        "\nTime taken to select and normalise data for creating training features:", selecting_training_time,
+        "\nTime taken to generate features for training:", training_features_time,
+        "\nTime taken to tune and train regression model:",
+        "\n\tX axis =", tuned_training_time[0],
+        "\n\tY axis =", tuned_training_time[1],
+        "\n\tZ axis =", tuned_training_time[2],
+        "\nTime taken to select and normalise data for creating training features:", selecting_test_time,
+        "\nTime taken to generate features for testing/predicting:", test_features_time,
+        "\nTime taken to predict voluntary motion:",
+        "\n\tX axis =", predicting_time[0],
+        "\n\tY axis =", predicting_time[1],
+        "\n\tZ axis =", predicting_time[2],
+        "\nTotal time taken:",
+        (data_reading_time + selecting_training_time + training_features_time + tuned_training_time[0] +
+         tuned_training_time[1] + tuned_training_time[2] + selecting_test_time + test_features_time +
+         predicting_time[0] + predicting_time[1] + predicting_time[2])
+    )
 
 
 def prepare_model(time, motion, labels, horizon=None):
