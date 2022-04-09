@@ -6,7 +6,8 @@ from sklearn import svm
 
 # functions that apply to both simulated and real tremor
 import functions.feature_handler as fh
-import functions.miscellaneous as mf
+import functions.data_handler as dh
+import functions.evaluator as eva
 
 
 def main():
@@ -27,7 +28,7 @@ def main():
     print("Change in X:\n", delta_x)
 
     # finds the optimum value for C (regularisation parameter)
-    [horizon, C] = mf.optimise([x2, delta_x], y)
+    [horizon, C] = dh.optimise([x2, delta_x], y)
     # C = 2.43  # optimal C value = 2.43
     # horizon = x  # optimal horizon value = 5
     print("Regularisation parameter C:", C, "\nHorizon value:", horizon)
@@ -46,7 +47,7 @@ def main():
 
     # calculates and prints the RMSE of the model
     y = fh.denormalise(y, y_mean, y_sigma)
-    accuracy = mf.calc_accuracy(predictions, y)
+    accuracy = dh.calc_accuracy(predictions, y)
     print("\nAccuracy: " + str(accuracy) + "%")
 
     # plots the data and model on a graph
@@ -87,7 +88,7 @@ def read_data(file_name, l_bound, u_bound, label_col):
         rows = list(reader)
 
         # ensures bounds are valid
-        [l_bound, u_bound] = mf.check_bounds(l_bound, u_bound, rows)
+        [l_bound, u_bound] = dh.check_bounds(l_bound, u_bound, rows)
 
         # reads through the file and puts the data in the respective lists above
         for i in range(l_bound, u_bound):

@@ -1,5 +1,4 @@
 # libraries imported
-import csv
 import numpy as np
 from scipy import signal
 from datetime import datetime
@@ -7,7 +6,7 @@ from datetime import datetime
 
 # functions that apply to both simulated and real tremor
 import functions.feature_handler as fh
-import functions.miscellaneous as mf
+import functions.data_handler as dh
 import functions.evaluator as eva
 import functions.optimiser as op
 import functions.plotter as plt
@@ -21,7 +20,7 @@ def main():
 
     start_time = datetime.now()
     # reads data into memory and filters it
-    data = read_data(file_name, 200, 4000)  # real tremor data (t, x, y, z, grip force)
+    data = dh.read_data(file_name, 200, 4000)  # real tremor data (t, x, y, z, grip force)
     filtered_data = filter_data(data)  # filters data to get an estimate of intended movement (label)
     # 80% of data is used for training
     training_data = data[:, :int(training_testing_ratio * len(data[0]))]  # first 80% of data for training
@@ -44,10 +43,12 @@ def main():
 
     start_time = datetime.now()
     # calculates the features in a separate function
-    [training_features, horizon] = prepare_model(time, training_motion, training_label)
+    [training_features, horizon] = fh.gen_features(time, training_motion, training_label)
     end_time = datetime.now()
     # time taken to create training features
     training_features_time = (end_time - start_time).total_seconds()
+    # prints the optimised values
+    print("Horizon values [x, y, z]:", horizon)
 
     # SVM with rbf kernel (x axis)
     regression = []
@@ -95,7 +96,7 @@ def main():
 
     start_time = datetime.now()
     # calculates the features in a separate function
-    test_features = prepare_model(time, test_motion, test_label, horizon)
+    test_features = fh.gen_features(time, test_motion, test_label, horizon)
     end_time = datetime.now()
     # time taken to create test data features
     test_features_time = (end_time - start_time).total_seconds()
@@ -142,9 +143,12 @@ def main():
         tremor_accuracy.append(eva.calc_accuracy(actual_tremor[i], predicted_tremor[i]))
     tremor_error = np.subtract(actual_tremor, predicted_tremor)
     # converts and prints a the NRMSE in a percentage form
-    print("X Tremor accuracy [R2, NRMSE]: " + "[" + str(tremor_accuracy[0][0]) + "%" + ", " + str(tremor_accuracy[0][1]) + "]")
-    print("Y Tremor accuracy [R2, NRMSE]: " + "[" + str(tremor_accuracy[1][0]) + "%" + ", " + str(tremor_accuracy[1][1]) + "]")
-    print("Z Tremor accuracy [R2, NRMSE]: " + "[" + str(tremor_accuracy[2][0]) + "%" + ", " + str(tremor_accuracy[2][1]) + "]")
+    print("X Tremor accuracy [R2, NRMSE]: " +
+          "[" + str(tremor_accuracy[0][0]) + "%" + ", " + str(tremor_accuracy[0][1]) + "]")
+    print("Y Tremor accuracy [R2, NRMSE]: " +
+          "[" + str(tremor_accuracy[1][0]) + "%" + ", " + str(tremor_accuracy[1][1]) + "]")
+    print("Z Tremor accuracy [R2, NRMSE]: " +
+          "[" + str(tremor_accuracy[2][0]) + "%" + ", " + str(tremor_accuracy[2][1]) + "]")
 
     # puts regression model data in a list
     model_data = [
@@ -216,87 +220,6 @@ def main():
     )
 
 
-def prepare_model(time, motion, labels, horizon=None):
-    velocity = []  # feature 2
-    acceleration = []  # feature 3
-    past_motion = []  # feature 4
-    for i in range(len(motion)):
-        # calculates the rate of change of 3D motion
-        velocity.append(fh.calc_delta(time, motion[i]))
-        # calculates the rate of change of rate of change of 3D motion (rate of change of velocity)
-        acceleration.append(fh.calc_delta(time, velocity[i]))
-        # uses the past data as a feature
-        past_motion.append(fh.normalise(fh.shift(motion[i])))  # previous value
-
-        # smoothing the velocity and acceleration
-        velocity[i] = fh.normalise(fh.calc_average(velocity[i], 5))
-        acceleration[i] = fh.normalise(fh.calc_average(acceleration[i], 5))
-
-    # finds the optimum C and horizon values if no horizon values are inputted
-    if horizon is None:
-        features = []
-        # puts all existing features in a list for model optimisation
-        for i in range(len(motion)):
-            features.append([
-                motion[i],
-                velocity[i],
-                acceleration[i],
-                past_motion[i]
-            ])
-
-        # generates optimal horizon and C values
-        horizon = optimise_model(features, labels)
-
-        for i in range(len(motion)):
-            # calculates the average 3D motion
-            average = fh.normalise(fh.calc_average(motion[i], horizon[i]))  # last feature
-            # adds the average feature to the features list
-            features[i].append(average)
-        return features, horizon
-    else:
-        features = []
-        # puts existing features in a list
-        for i in range(len(motion)):
-            features.append([
-                motion[i],
-                velocity[i],
-                acceleration[i],
-                past_motion[i]
-            ])
-
-        for i in range(len(motion)):
-            # calculates the average 3D motion
-            average = fh.normalise(fh.calc_average(motion[i], horizon[i]))  # last feature
-            # adds the average feature to the features list
-            features[i].append(average)
-        return features
-
-
-def optimise_model(features, labels):
-    # finds the optimum value for C (regularisation parameter)
-    # print("Optimising horizons...")
-    # horizon = []
-    # # only required to run once
-    # for i in range(len(features)):
-    #     horizon.append(op.optimise_parameter(features[i], labels[i], "horizon"))
-    # print("Done!")
-
-    # used to save time (optimising is only required once)
-    # horizon = [9, 41, 39]  # X, Y, Z
-    horizon = [30, 30, 30]  # X, Y, Z
-
-    # prints the optimised values
-    print("Horizon values [x, y, z]:", horizon)
-    return horizon
-
-
-def select_normalised_data(data):
-    x = fh.normalise(data[1], True)  # x axis (feature 1)
-    y = fh.normalise(data[2], True)  # y axis (feature 1)
-    z = fh.normalise(data[3], True)  # z axis (feature 1)
-    return x, y, z
-
-
 # filters the input data to estimate the intended movement
 def filter_data(data):
     time_period = 1 / 250
@@ -309,22 +232,11 @@ def filter_data(data):
     return filtered_data
 
 
-# reads data in a csv file and puts them in a 2D list
-def read_data(file_name, l_bound, u_bound):
-    data = []
-    with open(file_name, "r") as file:
-        reader = csv.reader(file)
-        rows = list(reader)
-
-        # ensures bounds are valid
-        [l_bound, u_bound] = mf.check_bounds(l_bound, u_bound, rows)
-
-        # reads through the file and puts the data in the respective lists above
-        for i in range(l_bound, u_bound):
-            row = rows[i]
-            data.append(list(np.float_(row)))
-    # reshapes the list into a 2D numpy array with each feature/label being its own sub-array
-    return np.vstack(data).T
+def select_normalised_data(data):
+    x = fh.normalise(data[1], True)  # x axis (feature 1)
+    y = fh.normalise(data[2], True)  # y axis (feature 1)
+    z = fh.normalise(data[3], True)  # z axis (feature 1)
+    return x, y, z
 
 
 if __name__ == '__main__':

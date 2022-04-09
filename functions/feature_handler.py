@@ -1,5 +1,6 @@
 import math
 import numpy as np
+import functions.optimiser as op
 
 
 # finds the change in tremor output
@@ -51,15 +52,67 @@ def shift(data, shift_value=1):
     return new_data
 
 
-def divide_data(data, index_difference=1):
-    divided_data = []
-    for i in range(len(data)):
-        # if statement prevents index out of bounds exception
-        if i > (index_difference - 1):
-            divided_data.append((data[i] / (data[i - index_difference] + 0.01)))  # 0.01 to prevent division by 0
-        else:
-            divided_data.append(data[i] / (data[0] + 0.01))  # 0.01 to prevent division by 0
-    return divided_data
+def gen_features(time, motion, labels, horizon=None):
+    velocity = []  # feature 2
+    acceleration = []  # feature 3
+    past_motion = []  # feature 4
+    for i in range(len(motion)):
+        # calculates the rate of change of 3D motion
+        velocity.append(calc_delta(time, motion[i]))
+        # calculates the rate of change of rate of change of 3D motion (rate of change of velocity)
+        acceleration.append(calc_delta(time, velocity[i]))
+        # uses the past data as a feature
+        past_motion.append(normalise(shift(motion[i])))  # previous value
+
+        # smoothing the velocity and acceleration
+        velocity[i] = normalise(calc_average(velocity[i], 5))
+        acceleration[i] = normalise(calc_average(acceleration[i], 5))
+
+    # finds the optimum C and horizon values if no horizon values are inputted
+    if horizon is None:
+        features = []
+        # puts all existing features in a list for model optimisation
+        for i in range(len(motion)):
+            features.append([
+                motion[i],
+                velocity[i],
+                acceleration[i],
+                past_motion[i]
+            ])
+
+        # finds the optimum value for horizon
+        # print("Optimising horizons...")
+        # horizon = []
+        # # only required to run once
+        # for i in range(len(features)):
+        #     horizon.append(op.optimise_parameter(features[i], labels[i], "horizon"))
+        # print("Done!")
+        # used to save time (optimising is only required once)
+        horizon = [30, 30, 30]  # X, Y, Z
+
+        for i in range(len(motion)):
+            # calculates the average 3D motion
+            average = normalise(calc_average(motion[i], horizon[i]))  # last feature
+            # adds the average feature to the features list
+            features[i].append(average)
+        return features, horizon
+    else:
+        features = []
+        # puts existing features in a list
+        for i in range(len(motion)):
+            features.append([
+                motion[i],
+                velocity[i],
+                acceleration[i],
+                past_motion[i]
+            ])
+
+        for i in range(len(motion)):
+            # calculates the average 3D motion
+            average = normalise(calc_average(motion[i], horizon[i]))  # last feature
+            # adds the average feature to the features list
+            features[i].append(average)
+        return features
 
 
 # normalises a list to be between -1 and 1
