@@ -20,18 +20,20 @@ def main():
     time_period = 1 / 250  # a sample is recorded every 0.004 seconds
 
     # reads data into memory and filters it
-    data = dh.read_data(file_name, 200, 4000)  # real tremor data (t, x, y, z, grip force)
+    data = dh.read_data(file_name, 200, 300)  # real tremor data (t, x, y, z, grip force)
     t = np.array(data[0], dtype='f') * time_period  # samples are measured at a rate of 250Hz
 
     # a buffer holding a specified number of motion (+ filtered motion) samples
-    no_samples = 10  # more samples = more accuracy but slower speed
+    no_samples = 50  # more samples = more accuracy but slower speed
     motion_buffer = [[], [], []]  # 2D list holding each axis
 
     time_delay = []
-    accuracies = []
-    tremor_accuracies = []
+    accuracies = [[], [], []]
+    tremor_accuracies = [[], [], []]
     for i in range(len(data[0])):
         start_time = datetime.now()
+
+        print("\nProgress:\n", i+1, "/", len(data[0]), "\n")  # prints progress (for testing purposes)
 
         current_motion = [data[1][i], data[2][i], data[3][i]]
         # buffers are updated with new values
@@ -63,7 +65,6 @@ def main():
 
             # calculates the features in a separate function
             [features, horizon] = fh.gen_features(t, motion_buffer, label_buffer)
-            print("Horizon values [x, y, z]:", horizon)  # prints the optimised values
 
             # SVM with rbf kernel (x axis)
             regression = []
@@ -76,8 +77,8 @@ def main():
                 regression.append(op.tune_model(axis_features, label_buffer[j]))
                 hyperparameters.append(regression[j].best_params_)
             print("Done!")
-            print("\nHyperparameters (x, y, z):\n", hyperparameters)
-            print("\nFeatures (x, y, z):\n", np.array(features))
+            print("\nHyperparameters [{x}, {y}, {z}]:", hyperparameters)
+            print("Horizon values [x, y, z]:", horizon)  # prints the optimised values
 
             # predicts intended motion using the original data as an input (scaled to intended motion)
             prediction = []
@@ -90,9 +91,8 @@ def main():
 
             # calculates and prints the R2 score and normalised RMSE of the model (including tremor component)
             for j in range(len(label_buffer)):
-                accuracies.append(eva.calc_accuracy(label_buffer[j], prediction[j]))
-                tremor_accuracies.append(eva.calc_tremor_accuracy(motion_buffer[j], prediction[j], label_buffer[j]))
-
+                accuracies[j].append(eva.calc_accuracy(label_buffer[j], prediction[j]))
+                tremor_accuracies[j].append(eva.calc_tremor_accuracy(motion_buffer[j], prediction[j], label_buffer[j]))
         end_time = datetime.now()
         # measures time taken for each iteration
         iteration_time = (end_time - start_time).total_seconds()
@@ -101,10 +101,63 @@ def main():
         if iteration_time < time_period:
             time.sleep(time_period - iteration_time)
 
-    # plt.plot_features(data[0], accuracies, "Motion accuracy (%)")
-    print("Accuracies:\n", np.array(accuracies))
-    print("Tremor accuracies:\n", np.array(tremor_accuracies))
-    print("Time taken for each iteration:\n", np.array(time_delay))
+    print("==============================================")  # separates results from other messages
+
+    r2_scores = []
+    nrmse = []
+    # fills and formats lists with data
+    for i in range(len(accuracies)):
+        accuracies[i] = np.array(accuracies[i]).T.tolist()
+        tremor_accuracies[i] = np.array(tremor_accuracies[i]).T.tolist()
+        r2_scores.append([accuracies[i][0], tremor_accuracies[i][0]])
+        nrmse.append([accuracies[i][1], tremor_accuracies[i][1]])
+    # prints accuracy scores + averages
+    print("\nR2 scores [[motion], [tremor]]\nX:", r2_scores[0], "\nY:", r2_scores[1], "\nZ:", r2_scores[2])
+    print("\nNormalised RMS error [[motion], [tremor]]\nX:", nrmse[0], "\nY:", nrmse[1], "\nZ:", nrmse[2])
+    print(
+        "\nAverage R2 scores",
+        "\nX (motion, tremor):", np.mean(r2_scores[0][0]), "%", np.mean(r2_scores[0][1]), "%",
+        "\nY (motion, tremor):", np.mean(r2_scores[1][0]), "%", np.mean(r2_scores[1][1]), "%",
+        "\nZ (motion, tremor):", np.mean(r2_scores[2][0]), "%", np.mean(r2_scores[2][1]), "%"
+    )
+    print(
+        "\nAverage normalised RMS errors",
+        "\nX (motion, tremor):", np.mean(nrmse[0][0]), np.mean(nrmse[0][1]),
+        "\nY (motion, tremor):", np.mean(nrmse[1][0]), np.mean(nrmse[1][1]),
+        "\nZ (motion, tremor):", np.mean(nrmse[2][0]), np.mean(nrmse[2][1])
+    )
+    # prints performance data
+    print("\nTime taken for each iteration:\n", time_delay)
+    # filling the buffer takes approximately no time
+    print("\nAverage time taken after filling buffer:", np.mean(time_delay[(no_samples - 1):]))
+
+    accuracies_labels = [
+        ["Motion (x)", "Tremor component (x)"],
+        ["Motion (y)", "Tremor component (y)"],
+        ["Motion (z)", "Tremor component (z)"]
+    ]
+    plt.plot_accuracies(
+        data[0][(no_samples - 1):],
+        r2_scores,
+        accuracies_labels,
+        "Iteration",
+        "R2 accuracy (%)"
+    )
+    plt.plot_accuracies(
+        data[0][(no_samples - 1):],
+        nrmse,
+        accuracies_labels,
+        "Iteration",
+        "Normalised error"
+    )
+    # filling buffer takes approximately no time so it was removed to scale important data better
+    plt.plot_data(
+        data[0][(no_samples - 1):],
+        [[time_delay[(no_samples - 1):], "Delay per iteration"]],
+        "Iteration",
+        "Time taken (s)"
+    )
+
 
 # filters the input data to estimate the intended movement
 def filter_data(data, time_period):

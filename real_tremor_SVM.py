@@ -195,7 +195,7 @@ def main():
     plt.plot_model(time, tremor_data, tremor_axes_labels)  # plots the tremor components
     # plots the features
     for axis in features_data:
-        plt.plot_features(time, axis, "N-motion")
+        plt.plot_data(time, axis, "Time (s)", "N-motion")
 
     # prints performance of the program
     print(
