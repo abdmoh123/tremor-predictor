@@ -101,7 +101,7 @@ def main():
         if iteration_time < time_period:
             time.sleep(time_period - iteration_time)
 
-    print("==============================================")  # separates results from other messages
+    print("\nResults\n==============================================")  # separates results from other messages
 
     r2_scores = []
     nrmse = []
@@ -111,25 +111,26 @@ def main():
         tremor_accuracies[i] = np.array(tremor_accuracies[i]).T.tolist()
         r2_scores.append([accuracies[i][0], tremor_accuracies[i][0]])
         nrmse.append([accuracies[i][1], tremor_accuracies[i][1]])
-    # prints accuracy scores + averages
+    # prints accuracy scores
     print("\nR2 scores [[motion], [tremor]]\nX:", r2_scores[0], "\nY:", r2_scores[1], "\nZ:", r2_scores[2])
     print("\nNormalised RMS error [[motion], [tremor]]\nX:", nrmse[0], "\nY:", nrmse[1], "\nZ:", nrmse[2])
+    # prints performance data
+    print("\nTime taken for each iteration:\n", time_delay)
+    # prints averages of results
     print(
         "\nAverage R2 scores",
-        "\nX (motion, tremor):", np.mean(r2_scores[0][0]), "%", np.mean(r2_scores[0][1]), "%",
-        "\nY (motion, tremor):", np.mean(r2_scores[1][0]), "%", np.mean(r2_scores[1][1]), "%",
-        "\nZ (motion, tremor):", np.mean(r2_scores[2][0]), "%", np.mean(r2_scores[2][1]), "%"
+        "\nX [motion, tremor]: [", np.mean(r2_scores[0][0]), "%\t", np.mean(r2_scores[0][1]), "% ]",
+        "\nY [motion, tremor]: [", np.mean(r2_scores[1][0]), "%\t", np.mean(r2_scores[1][1]), "% ]",
+        "\nZ [motion, tremor]: [", np.mean(r2_scores[2][0]), "%\t", np.mean(r2_scores[2][1]), "% ]"
     )
     print(
         "\nAverage normalised RMS errors",
-        "\nX (motion, tremor):", np.mean(nrmse[0][0]), np.mean(nrmse[0][1]),
-        "\nY (motion, tremor):", np.mean(nrmse[1][0]), np.mean(nrmse[1][1]),
-        "\nZ (motion, tremor):", np.mean(nrmse[2][0]), np.mean(nrmse[2][1])
+        "\nX [motion, tremor]: [", np.mean(nrmse[0][0]), "\t", np.mean(nrmse[0][1]), "]",
+        "\nY [motion, tremor]: [", np.mean(nrmse[1][0]), "\t", np.mean(nrmse[1][1]), "]",
+        "\nZ [motion, tremor]: [", np.mean(nrmse[2][0]), "\t", np.mean(nrmse[2][1]), "]"
     )
-    # prints performance data
-    print("\nTime taken for each iteration:\n", time_delay)
     # filling the buffer takes approximately no time
-    print("\nAverage time taken after filling buffer:", np.mean(time_delay[(no_samples - 1):]))
+    print("\nAverage time taken after filling buffer:", np.mean(time_delay[(no_samples - 1):]), "s")
 
     accuracies_labels = [
         ["Motion (x)", "Tremor component (x)"],
