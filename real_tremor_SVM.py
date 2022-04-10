@@ -124,7 +124,7 @@ def main():
     print("\nPredicted output (y):\n", np.array(prediction[1]), "\nActual output (y):\n", np.array(label[1]))
     print("\nPredicted output (z):\n", np.array(prediction[2]), "\nActual output (z):\n", np.array(label[2]))
 
-    # calculates and prints the normalised RMSE of the model
+    # calculates and prints the R2 score and normalised RMSE of the model
     accuracy = []
     for i in range(len(label)):
         accuracy.append(eva.calc_accuracy(label[i], prediction[i]))
