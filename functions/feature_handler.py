@@ -52,7 +52,7 @@ def shift(data, shift_value=1):
     return new_data
 
 
-def gen_features(time, motion, labels, horizon=None):
+def gen_features(time, motion, labels=None, horizon=None):
     velocity = []  # feature 2
     acceleration = []  # feature 3
     past_motion = []  # feature 4
@@ -69,7 +69,7 @@ def gen_features(time, motion, labels, horizon=None):
         acceleration[i] = normalise(calc_average(acceleration[i], 5))
 
     # finds the optimum C and horizon values if no horizon values are inputted
-    if horizon is None:
+    if (horizon is None) and (labels is not None):
         features = []
         # puts all existing features in a list for model optimisation
         for i in range(len(motion)):
@@ -96,7 +96,7 @@ def gen_features(time, motion, labels, horizon=None):
             # adds the average feature to the features list
             features[i].append(average)
         return features, horizon
-    else:
+    elif horizon is not None:
         features = []
         # puts existing features in a list
         for i in range(len(motion)):
@@ -113,6 +113,10 @@ def gen_features(time, motion, labels, horizon=None):
             # adds the average feature to the features list
             features[i].append(average)
         return features
+    else:
+        # quits the program if an argument is missing
+        print("\nMissing argument! (horizon or labels)")
+        exit()
 
 
 # normalises a list to be between -1 and 1
