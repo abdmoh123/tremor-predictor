@@ -24,7 +24,7 @@ def main():
     t = np.array(data[0], dtype='f') * time_period  # samples are measured at a rate of 250Hz
 
     # a buffer holding a specified number of motion (+ filtered motion) samples
-    no_samples = 750  # more samples = more accuracy but slower speed
+    no_samples = 500  # more samples = more accuracy but slower speed
     motion_buffer = [[], [], []]  # 2D list holding each axis
     normalised_motion_buffer = []
     label_buffer = []
@@ -39,6 +39,7 @@ def main():
     training_times = []
     predicting_times = []
 
+    """ Buffer filling phase """
     for i in range(no_samples):
         start_time = datetime.now()
 
@@ -49,11 +50,10 @@ def main():
         motion_buffer = add_to_buffer(current_motion, motion_buffer, no_samples)
 
         end_time = datetime.now()
+        reading_time = (end_time - start_time).total_seconds()
         # ensures that every iteration 'waits' for the next sample to be streamed
         if reading_time < time_period:
-            reading_times = time_period  # should at least 0.004s (sample rate)
-        else:
-            reading_time = (end_time - start_time).total_seconds()  # measures time taken for each iteration
+            reading_time = time_period  # should at least 0.004s (sample rate)
         reading_times.append(reading_time)
 
     # generates the labels and normalises the buffers
@@ -71,6 +71,7 @@ def main():
         # measures time taken for each iteration
         filtering_times.append((end_time - start_time).total_seconds())
 
+    """ Training and tuning phase """
     start_time = datetime.now()
 
     # calculates the features in a separate function
@@ -93,8 +94,12 @@ def main():
     end_time = datetime.now()
     # measures time taken for training the model
     training_times.append((end_time - start_time).total_seconds())
+    # skips all the samples being 'streamed' while the model was trained
+    prediction_start = round(np.max(training_times) / time_period) + no_samples  # index must be an integer
+    print("Predictions start at index:", prediction_start)
 
-    for i in range(no_samples, len(data[0])):
+    """ Prediction phase """
+    for i in range(prediction_start, len(data[0])):
         start_time = datetime.now()
 
         current_motion = [data[1][i], data[2][i], data[3][i]]
@@ -121,7 +126,7 @@ def main():
             axis_features = np.vstack(features[j]).T
             # predicts the voluntary motion and denormalises it to the correct scale
             prediction.append(fh.denormalise(regression[j].predict(axis_features), motion_means[j], motion_sigmas[j]))
-            total_predictions[j].append(prediction[j][len(prediction) - 1])  # saves latest prediction for evaluation
+            total_predictions[j].append(prediction[j][len(prediction[j]) - 1])  # saves latest prediction for evaluation
 
         print("\nProgress:\n", i + 1, "/", len(data[0]), "\n")  # prints progress (for testing purposes)
 
@@ -134,6 +139,7 @@ def main():
         # measures time taken for predicting
         predicting_times.append((end_time - start_time).total_seconds())
 
+    """ Evaluation phase """
     print("\nResults\n==============================================")  # separates results from other messages
 
     r2_scores = []
@@ -169,7 +175,7 @@ def main():
         "\nAverage time taken to predict voluntary motion:", avg_prediction_time
     )
 
-    motion = [data[1][no_samples:], data[2][no_samples:], data[3][no_samples:]]
+    motion = [data[1][prediction_start:], data[2][prediction_start:], data[3][prediction_start:]]
     filtered_motion = []
     for axis in motion:
         filtered_motion.append(filter_data(axis, time_period))
@@ -184,12 +190,9 @@ def main():
     # gets the tremor component by subtracting from the voluntary motion
     actual_tremor = []
     predicted_tremor = []
-    tremor_accuracy = []
     for i in range(len(motion)):
         actual_tremor.append(np.subtract(motion[i], filtered_motion[i]))
         predicted_tremor.append(np.subtract(motion[i], total_predictions[i]))
-        # calculates the normalised RMSE of the tremor component
-        tremor_accuracy.append(eva.calc_accuracy(actual_tremor[i], predicted_tremor[i]))
     tremor_error = np.subtract(actual_tremor, predicted_tremor)
     # puts the tremor component data in a list
     tremor_data = [
@@ -199,8 +202,8 @@ def main():
     ]
     tremor_axes_labels = ["Actual tremor", "Predicted tremor", "Tremor error"]
 
-    plt.plot_model(t[no_samples:], model_data, model_axes_labels)  # plots SVR model
-    plt.plot_model(t[no_samples:], tremor_data, tremor_axes_labels)  # plots the tremor components
+    plt.plot_model(t[prediction_start:], model_data, model_axes_labels)  # plots SVR model
+    plt.plot_model(t[prediction_start:], tremor_data, tremor_axes_labels)  # plots the tremor components
 
     accuracies_labels = [
         ["Motion (x)", "Tremor component (x)"],
@@ -208,14 +211,14 @@ def main():
         ["Motion (z)", "Tremor component (z)"]
     ]
     plt.plot_accuracies(
-        data[0][no_samples:],
+        data[0][prediction_start:],
         r2_scores,
         accuracies_labels,
         "Iteration",
         "R2 accuracy (%)"
     )
     plt.plot_accuracies(
-        data[0][no_samples:],
+        data[0][prediction_start:],
         nrmse,
         accuracies_labels,
         "Iteration",
