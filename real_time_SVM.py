@@ -152,13 +152,13 @@ def main():
         nrmse.append([accuracies[i][1], tremor_accuracies[i][1]])
     # prints averages of results
     print(
-        "\nAverage R2 scores",
+        "\nAverage R2 scores during prediction phase",
         "\nX [motion, tremor]: [", np.mean(r2_scores[0][0]), "%\t", np.mean(r2_scores[0][1]), "% ]",
         "\nY [motion, tremor]: [", np.mean(r2_scores[1][0]), "%\t", np.mean(r2_scores[1][1]), "% ]",
         "\nZ [motion, tremor]: [", np.mean(r2_scores[2][0]), "%\t", np.mean(r2_scores[2][1]), "% ]"
     )
     print(
-        "\nAverage normalised RMS errors",
+        "\nAverage normalised RMS errors during prediction phase",
         "\nX [motion, tremor]: [", np.mean(nrmse[0][0]), "\t", np.mean(nrmse[0][1]), "]",
         "\nY [motion, tremor]: [", np.mean(nrmse[1][0]), "\t", np.mean(nrmse[1][1]), "]",
         "\nZ [motion, tremor]: [", np.mean(nrmse[2][0]), "\t", np.mean(nrmse[2][1]), "]"
@@ -175,10 +175,45 @@ def main():
         "\nAverage time taken to predict voluntary motion:", avg_prediction_time
     )
 
+    # truncates the data to the same length as the predictions
     motion = [data[1][prediction_start:], data[2][prediction_start:], data[3][prediction_start:]]
     filtered_motion = []
-    for axis in motion:
-        filtered_motion.append(filter_data(axis, time_period))
+    overall_accuracy = []
+    # calculates the labels and accuracy of the truncated data
+    for i in range(len(motion)):
+        filtered_motion.append(filter_data(motion[i], time_period))
+        overall_accuracy.append(eva.calc_accuracy(filtered_motion[i], total_predictions[i]))
+    # prints the accuracies of the overall voluntary motion (after completion)
+    print(
+        "\nOverall accuracy",
+        "\nX [R2, NRMSE]: [" + str(overall_accuracy[0][0]) + "%" + ", " + str(overall_accuracy[0][1]) + "]",
+        "\nY [R2, NRMSE]: [" + str(overall_accuracy[1][0]) + "%" + ", " + str(overall_accuracy[1][1]) + "]",
+        "\nZ [R2, NRMSE]: [" + str(overall_accuracy[2][0]) + "%" + ", " + str(overall_accuracy[2][1]) + "]"
+    )
+
+    actual_tremor = []
+    predicted_tremor = []
+    overall_tremor_accuracy = []
+    # gets the tremor component by subtracting from the voluntary motion
+    for i in range(len(motion)):
+        actual_tremor.append(np.subtract(motion[i], filtered_motion[i]))
+        predicted_tremor.append(np.subtract(motion[i], total_predictions[i]))
+        overall_tremor_accuracy.append(eva.calc_tremor_accuracy(motion[i], total_predictions[i], filtered_motion[i]))
+    tremor_error = np.subtract(actual_tremor, predicted_tremor)
+    # prints the accuracies of the overall tremor component (after completion)
+    print(
+        "\nOverall tremor accuracy",
+        "\nX [R2, NRMSE]: ["
+        + str(overall_tremor_accuracy[0][0]) + "%" + ", " + str(overall_tremor_accuracy[0][1]) +
+        "]",
+        "\nY [R2, NRMSE]: ["
+        + str(overall_tremor_accuracy[1][0]) + "%" + ", " + str(overall_tremor_accuracy[1][1]) +
+        "]",
+        "\nZ [R2, NRMSE]: ["
+        + str(overall_tremor_accuracy[2][0]) + "%" + ", " + str(overall_tremor_accuracy[2][1]) +
+        "]"
+    )
+
     # puts regression model data in a list
     model_data = [
         [motion[0], filtered_motion[0], total_predictions[0], "X motion (mm)"],
@@ -186,14 +221,6 @@ def main():
         [motion[2], filtered_motion[2], total_predictions[2], "Z motion (mm)"]
     ]
     model_axes_labels = ["Original signal", "Filtered output", "Predicted output"]
-
-    # gets the tremor component by subtracting from the voluntary motion
-    actual_tremor = []
-    predicted_tremor = []
-    for i in range(len(motion)):
-        actual_tremor.append(np.subtract(motion[i], filtered_motion[i]))
-        predicted_tremor.append(np.subtract(motion[i], total_predictions[i]))
-    tremor_error = np.subtract(actual_tremor, predicted_tremor)
     # puts the tremor component data in a list
     tremor_data = [
         [actual_tremor[0], predicted_tremor[0], tremor_error[0], "X motion (mm)"],

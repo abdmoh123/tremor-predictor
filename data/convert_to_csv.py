@@ -1,6 +1,6 @@
 def main():
     in_file = open("N_pointingxyzAI_mag1_force01_an02.txt", "r")
-    out_file = open("data/real_tremor_data.csv", "a")
+    out_file = open("real_tremor_data.csv", "a")
     for line in in_file:
         content_array = line.split()
         content = ""
