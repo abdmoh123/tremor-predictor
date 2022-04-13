@@ -2,6 +2,7 @@
 import time
 import numpy as np
 from scipy import signal
+from scipy import interpolate
 from datetime import datetime
 
 
@@ -16,15 +17,16 @@ np.set_printoptions(threshold=50)  # shortens long arrays in the console window
 
 
 def main():
-    file_name = "./data/real_tremor_data.csv"
-    time_period = 1 / 250  # a sample is recorded every 0.004 seconds
+    """ Constants """
+    FILE_NAME = "./data/real_tremor_data.csv"
+    TIME_PERIOD = 1 / 250  # a sample is recorded every 0.004 seconds
+    N_SAMPLES = 500  # more samples = more accuracy but slower speed
 
     # reads data into memory and filters it
-    data = dh.read_data(file_name, 200, 4000)  # real tremor data (t, x, y, z, grip force)
-    t = np.array(data[0], dtype='f') * time_period  # samples are measured at a rate of 250Hz
+    data = dh.read_data(FILE_NAME, 200, 4000)  # real tremor data (t, x, y, z, grip force)
+    t = np.array(data[0], dtype='f') * TIME_PERIOD  # samples are measured at a rate of 250Hz
 
     # a buffer holding a specified number of motion (+ filtered motion) samples
-    no_samples = 500  # more samples = more accuracy but slower speed
     motion_buffer = [[], [], []]  # 2D list holding each axis
     normalised_motion_buffer = []
     label_buffer = []
@@ -40,20 +42,20 @@ def main():
     predicting_times = []
 
     """ Buffer filling phase """
-    for i in range(no_samples):
+    for i in range(N_SAMPLES):
         start_time = datetime.now()
 
-        print("\nProgress:\n", i + 1, "/", len(data[0]), "\n")  # prints progress (for testing purposes)
+        print("\nProgress:\n", int(100 * (i + 1) / len(data[0])), "%")  # prints progress (for testing purposes)
 
         current_motion = [data[1][i], data[2][i], data[3][i]]
         # buffer is updated
-        motion_buffer = add_to_buffer(current_motion, motion_buffer, no_samples)
+        motion_buffer = add_to_buffer(current_motion, motion_buffer, N_SAMPLES)
 
         end_time = datetime.now()
         reading_time = (end_time - start_time).total_seconds()
         # ensures that every iteration 'waits' for the next sample to be streamed
-        if reading_time < time_period:
-            reading_time = time_period  # should at least 0.004s (sample rate)
+        if reading_time < TIME_PERIOD:
+            reading_time = TIME_PERIOD  # should at least 0.004s (sample rate)
         reading_times.append(reading_time)
 
     # generates the labels and normalises the buffers
@@ -61,7 +63,7 @@ def main():
         start_time = datetime.now()
 
         # filter is approximately the voluntary motion (label)
-        label_buffer.append(filter_data(motion_buffer[i], time_period))
+        label_buffer.append(filter_data(motion_buffer[i], TIME_PERIOD))
 
         # buffers are normalised for use in training
         normalised_motion_buffer.append(fh.normalise(motion_buffer[i]))
@@ -95,15 +97,16 @@ def main():
     # measures time taken for training the model
     training_times.append((end_time - start_time).total_seconds())
     # skips all the samples being 'streamed' while the model was trained
-    prediction_start = round(np.max(training_times) / time_period) + no_samples  # index must be an integer
+    prediction_start = round(sum(training_times) / TIME_PERIOD) + N_SAMPLES  # index must be an integer
     print("Predictions start at index:", prediction_start)
 
     """ Prediction phase """
-    for i in range(prediction_start, len(data[0])):
+    i = prediction_start
+    while i < len(data[0]):
         start_time = datetime.now()
 
         current_motion = [data[1][i], data[2][i], data[3][i]]
-        motion_buffer = add_to_buffer(current_motion, motion_buffer, no_samples)
+        motion_buffer = add_to_buffer(current_motion, motion_buffer, N_SAMPLES)
 
         # empties the means and standard deviations before normalising the new data
         motion_means = []
@@ -128,7 +131,7 @@ def main():
             prediction.append(fh.denormalise(regression[j].predict(axis_features), motion_means[j], motion_sigmas[j]))
             total_predictions[j].append(prediction[j][len(prediction[j]) - 1])  # saves latest prediction for evaluation
 
-        print("\nProgress:\n", i + 1, "/", len(data[0]), "\n")  # prints progress (for testing purposes)
+        print("\nProgress:\n", int(100 * (i + 1) / len(data[0])), "%")  # prints progress (for testing purposes)
 
         # calculates and prints the R2 score and normalised RMSE of the model (including tremor component)
         for j in range(len(label_buffer)):
@@ -138,6 +141,11 @@ def main():
         end_time = datetime.now()
         # measures time taken for predicting
         predicting_times.append((end_time - start_time).total_seconds())
+
+        # skips all the samples being 'streamed' while the program performed predictions
+        index_step = round(predicting_times[len(predicting_times) - 1] / TIME_PERIOD)  # index must be an integer
+        print("\nCurrent index:", i, ", Next index:", (index_step + 1))
+        i += index_step
 
     """ Evaluation phase """
     print("\nResults\n==============================================")  # separates results from other messages
@@ -177,11 +185,28 @@ def main():
 
     # truncates the data to the same length as the predictions
     motion = [data[1][prediction_start:], data[2][prediction_start:], data[3][prediction_start:]]
+    # interpolates the results to be the same length as the motion data
+    for i in range(len(total_predictions)):
+        # fills the gaps in the predictions list caused by skipping samples during prediction
+        interp_pred = interpolate.interp1d(np.arange(len(total_predictions[i])), total_predictions[i])
+        stretched_pred = interp_pred(np.linspace(0, len(total_predictions[i]) - 1, len(motion[i])))
+        total_predictions[i] = stretched_pred
+
+        for j in range(len(r2_scores[i])):
+            # fills in gaps in the R2 score list caused by skipping samples during prediction
+            interp_r2 = interpolate.interp1d(np.arange(len(r2_scores[i][j])), r2_scores[i][j])
+            stretched_r2 = interp_r2(np.linspace(0, len(r2_scores[i][j]) - 1, len(motion[i])))
+            r2_scores[i][j] = stretched_r2
+            # fills in gaps in the NRMSE list caused by skipping samples during prediction
+            interp_nrmse = interpolate.interp1d(np.arange(len(nrmse[i][j])), nrmse[i][j])
+            stretched_nrmse = interp_nrmse(np.linspace(0, len(nrmse[i][j]) - 1, len(motion[i])))
+            nrmse[i][j] = stretched_nrmse
+
     filtered_motion = []
     overall_accuracy = []
     # calculates the labels and accuracy of the truncated data
     for i in range(len(motion)):
-        filtered_motion.append(filter_data(motion[i], time_period))
+        filtered_motion.append(filter_data(motion[i], TIME_PERIOD))
         overall_accuracy.append(eva.calc_accuracy(filtered_motion[i], total_predictions[i]))
     # prints the accuracies of the overall voluntary motion (after completion)
     print(
@@ -254,8 +279,8 @@ def main():
 
 
 # filters the input data to estimate the intended movement
-def filter_data(data, time_period):
-    nyquist = 1 / (2 * time_period)
+def filter_data(data, TIME_PERIOD):
+    nyquist = 1 / (2 * TIME_PERIOD)
     cut_off = 5 / nyquist
 
     # zero phase filter is used to generate the labels (slow but very accurate)
