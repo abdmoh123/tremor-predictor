@@ -23,7 +23,7 @@ def main():
     N_SAMPLES = 500  # more samples = more accuracy but slower speed
 
     # reads data into memory and filters it
-    data = dh.read_data(FILE_NAME, 200, 4000)  # real tremor data (t, x, y, z, grip force)
+    data = dh.read_data(FILE_NAME, 200, 2000)  # real tremor data (t, x, y, z, grip force)
     t = np.array(data[0], dtype='f') * TIME_PERIOD  # samples are measured at a rate of 250Hz
 
     # a buffer holding a specified number of motion (+ filtered motion) samples
@@ -102,11 +102,14 @@ def main():
 
     """ Prediction phase """
     i = prediction_start
+    index_step = 1
     while i < len(data[0]):
         start_time = datetime.now()
 
-        current_motion = [data[1][i], data[2][i], data[3][i]]
-        motion_buffer = add_to_buffer(current_motion, motion_buffer, N_SAMPLES)
+        # loop allows missed data to be saved to buffer
+        for j in range(index_step, 0, -1):
+            current_motion = [data[1][i - j], data[2][i - j], data[3][i - j]]
+            motion_buffer = add_to_buffer(current_motion, motion_buffer, N_SAMPLES)
 
         # empties the means and standard deviations before normalising the new data
         motion_means = []
@@ -129,7 +132,10 @@ def main():
             axis_features = np.vstack(features[j]).T
             # predicts the voluntary motion and denormalises it to the correct scale
             prediction.append(fh.denormalise(regression[j].predict(axis_features), motion_means[j], motion_sigmas[j]))
-            total_predictions[j].append(prediction[j][len(prediction[j]) - 1])  # saves latest prediction for evaluation
+            new_predictions = prediction[j][len(prediction[j]) - index_step:len(prediction[j])]
+            # saves all predictions to an external array for evaluation
+            for value in new_predictions:
+                total_predictions[j].append(value)
 
         print("\nProgress:\n", int(100 * (i + 1) / len(data[0])), "%")  # prints progress (for testing purposes)
 
@@ -144,7 +150,7 @@ def main():
 
         # skips all the samples being 'streamed' while the program performed predictions
         index_step = round(predicting_times[len(predicting_times) - 1] / TIME_PERIOD)  # index must be an integer
-        print("\nCurrent index:", i, ", Next index:", (index_step + 1))
+        print("\nCurrent index:", i, ", Next index:", int(i + index_step))
         i += index_step
 
     """ Evaluation phase """
