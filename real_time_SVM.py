@@ -31,6 +31,8 @@ def main():
     normalised_motion_buffer = []
     label_buffer = []
     normalised_label_buffer = []
+    label_mean = []
+    label_sigma = []
 
     accuracies = [[], [], []]
     tremor_accuracies = [[], [], []]
@@ -67,7 +69,11 @@ def main():
 
         # buffers are normalised for use in training
         normalised_motion_buffer.append(fh.normalise(motion_buffer[i]))
-        normalised_label_buffer.append(fh.normalise(label_buffer[i]))
+        [n_label, mean, sigma] = fh.normalise(label_buffer[i], True)
+        normalised_label_buffer.append(n_label)
+        # mean and standard deviation are saved for later use in prediction phase
+        label_mean.append(mean)
+        label_sigma.append(sigma)
 
         end_time = datetime.now()
         # measures time taken for each iteration
@@ -117,11 +123,7 @@ def main():
         normalised_motion_buffer = []
         # buffer is normalised for predicting labels accurately
         for j in range(len(motion_buffer)):
-            [n_motion, mean, sigma] = fh.normalise(motion_buffer[j], True)
-            normalised_motion_buffer.append(n_motion)
-            # means and standard deviations are saved for denormalisation later
-            motion_means.append(mean)
-            motion_sigmas.append(sigma)
+            normalised_motion_buffer.append(fh.normalise(motion_buffer[j]))
 
         # generates features out of the data in the buffer
         features = fh.gen_features(t, normalised_motion_buffer, horizon=horizon)
@@ -131,7 +133,7 @@ def main():
             # reformats the features for fitting the model (numpy array)
             axis_features = np.vstack(features[j]).T
             # predicts the voluntary motion and denormalises it to the correct scale
-            prediction.append(fh.denormalise(regression[j].predict(axis_features), motion_means[j], motion_sigmas[j]))
+            prediction.append(fh.denormalise(regression[j].predict(axis_features), label_mean[j], label_sigma[j]))
             new_predictions = prediction[j][len(prediction[j]) - index_step:len(prediction[j])]
             # saves all predictions to an external array for evaluation
             for value in new_predictions:
