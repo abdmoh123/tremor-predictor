@@ -35,6 +35,16 @@ class Buffer:
         n_z = fh.normalise(self._z)
         return [n_x, n_y, n_z]
 
+    # returns a list of midpoints and spreads for each axis in the data
+    def get_data_attributes(self):
+        midpoints = []  # [X, Y, Z]
+        spreads = []  # [X, Y, Z]
+        for axis in self.content:
+            [mid, spread] = fh.get_norm_attributes(axis)
+            midpoints.append(mid)
+            spreads.append(spread)
+        return midpoints, spreads
+
     @property
     def content(self):
         return [self._x, self._y, self._z]

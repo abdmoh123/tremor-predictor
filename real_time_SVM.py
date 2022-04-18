@@ -1,8 +1,5 @@
 # libraries imported
-import time
 import numpy as np
-from scipy import signal
-from scipy import interpolate
 from datetime import datetime
 
 
@@ -40,7 +37,7 @@ def main():
     start_time = datetime.now()
 
     # calculates the features in a separate function
-    [features, horizon] = fh.gen_features(t, motion_buffer.normalise(), label_buffer.content)
+    [features, horizon] = fh.gen_features(t, motion_buffer.normalise(), label_buffer.normalise())
 
     # SVM with rbf kernel (x axis)
     regression = []
@@ -50,7 +47,7 @@ def main():
         # reformats the features for fitting the model (numpy array)
         axis_features = np.vstack(features[j]).T
         # tunes and trains the regression model
-        regression.append(op.tune_model(axis_features, label_buffer.content[j]))
+        regression.append(op.tune_model(axis_features, label_buffer.normalise()[j]))
         hyperparameters.append(regression[j].best_params_)
     print("Done!")
     print("\nHyperparameters [{x}, {y}, {z}]:", hyperparameters)
@@ -76,15 +73,18 @@ def main():
 
         # generates features out of the data in the buffer
         features = fh.gen_features(t, motion_buffer.normalise(), horizon=horizon)
+        # gets midpoints and spreads to denormalise the predictions
+        [midpoints, sigmas] = motion_buffer.get_data_attributes()
+
         # predicts intended motion using the original data as an input (scaled to intended motion)
         prediction = []
         for j in range(len(features)):
             # reformats the features for fitting the model (numpy array)
             axis_features = np.vstack(features[j]).T
             # predicts the voluntary motion and denormalises it to the correct scale
-            prediction.append(regression[j].predict(axis_features))
+            prediction.append(fh.denormalise(regression[j].predict(axis_features), midpoints[j], sigmas[j]))
+            # selects and saves only the new predictions to an external array for evaluation
             new_predictions = prediction[j][len(prediction[j]) - index_step:len(prediction[j])]
-            # saves all predictions to an external array for evaluation
             for value in new_predictions:
                 total_predictions[j].append(value)
 
@@ -94,11 +94,12 @@ def main():
         # measures time taken for predicting
         predicting_times.append((end_time - start_time).total_seconds())
 
-        # skips all the samples being 'streamed' while the program performed predictions
-        index_step = round(predicting_times[len(predicting_times) - 1] / TIME_PERIOD)  # index must be an integer
         # ensures the last sample is not missed
         if (i + index_step) > len(data[0]) and i != (len(data[0]) - 1):
             index_step = len(data[0]) - i - 1
+        else:
+            # skips all the samples being 'streamed' while the program performed predictions
+            index_step = round(predicting_times[len(predicting_times) - 1] / TIME_PERIOD)  # index must be an integer
         print("\nCurrent index:", i, "/", len(data[0]), ", Next index:", int(i + index_step))
         i += index_step
 
