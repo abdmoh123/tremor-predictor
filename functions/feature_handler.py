@@ -5,15 +5,12 @@ import functions.optimiser as op
 
 # finds the change in tremor output
 def calc_delta(time, feature, index_difference=1):
-    delta_x = []
     t = (time[1] - time[0]) * index_difference  # gets the time increment (delta t)
-    for i in range(len(feature)):
-        # if statement prevents index out of bounds exception
-        if i > (index_difference - 1):
-            delta_x.append((feature[i] - feature[i - index_difference]) / t)
-        else:
-            delta_x.append(feature[i] - feature[0])
-    return delta_x
+    past_feature = shift(feature, index_difference)
+    # replaces all zeros with the first non-zero value
+    for i in range(index_difference):
+        past_feature[i] = past_feature[index_difference]
+    return np.subtract(feature, past_feature) / t  # uses numpy to quickly/efficiently get the difference
 
 
 # calculates the average of every [horizon] values in an array
