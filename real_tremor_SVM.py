@@ -233,10 +233,13 @@ def filter_data(data):
 
 
 def select_normalised_data(data):
-    x = fh.normalise(data[1], True)  # x axis (feature 1)
-    y = fh.normalise(data[2], True)  # y axis (feature 1)
-    z = fh.normalise(data[3], True)  # z axis (feature 1)
-    return x, y, z
+    [x_mid, x_sigma] = fh.get_norm_attributes(data[1])
+    [y_mid, y_sigma] = fh.get_norm_attributes(data[2])
+    [z_mid, z_sigma] = fh.get_norm_attributes(data[3])
+    x = fh.normalise(data[1])  # x axis (feature 1)
+    y = fh.normalise(data[2])  # y axis (feature 1)
+    z = fh.normalise(data[3])  # z axis (feature 1)
+    return [x, x_mid, x_sigma], [y, y_mid, y_sigma], [z, z_mid, z_sigma]
 
 
 if __name__ == '__main__':

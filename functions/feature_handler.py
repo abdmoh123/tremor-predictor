@@ -120,17 +120,19 @@ def gen_features(time, motion, labels=None, horizon=None):
 
 
 # normalises a list to be between -1 and 1
-def normalise(data, return_averages=False):
-    sigma = (np.max(data) - np.min(data)) / 2  # calculates the spread of the data (range / 2)
+def normalise(data):
     mid = (np.max(data) + np.min(data)) / 2  # finds the midpoint of the data
-    norm_data = np.subtract(data, mid) / sigma  # normalises the values to be between -1 and 1
-
-    # returns the mean and spread if the function call specified
-    if return_averages:
-        return norm_data, mid, sigma
-    return norm_data
+    sigma = (np.max(data) - np.min(data)) / 2  # calculates the spread of the data (range / 2)
+    return np.subtract(data, mid) / sigma  # normalises the values to be between -1 and 1
 
 
 # reverses the normalisation
 def denormalise(data, mid, sigma):
     return np.multiply(data, sigma) + mid
+
+
+# gets midpoint and spread of data (used for denormalisation)
+def get_norm_attributes(data):
+    mid = (np.max(data) + np.min(data)) / 2  # finds the midpoint of the data
+    sigma = (np.max(data) - np.min(data)) / 2  # calculates the spread of the data (range / 2)
+    return mid, sigma
