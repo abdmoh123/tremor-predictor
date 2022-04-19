@@ -4,13 +4,12 @@ import functions.optimiser as op
 
 
 # finds the change in tremor output
-def calc_delta(time, feature, index_difference=1):
-    t = (time[1] - time[0]) * index_difference  # gets the time increment (delta t)
+def calc_delta(feature, TIME_PERIOD, index_difference=1):
     past_feature = shift(feature, index_difference)
     # replaces all zeros with the first non-zero value
     for i in range(index_difference):
         past_feature[i] = past_feature[index_difference]
-    return np.subtract(feature, past_feature) / t  # uses numpy to quickly/efficiently get the difference
+    return np.subtract(feature, past_feature) / TIME_PERIOD  # uses numpy to quickly/efficiently get the difference
 
 
 # calculates the average of every [horizon] values in an array
@@ -49,15 +48,15 @@ def shift(data, shift_value=1):
     return new_data
 
 
-def gen_features(time, motion, labels=None, horizon=None):
+def gen_features(TIME_PERIOD, motion, labels=None, horizon=None):
     velocity = []  # feature 2
     acceleration = []  # feature 3
     past_motion = []  # feature 4
     for i in range(len(motion)):
         # calculates the rate of change of 3D motion
-        velocity.append(calc_delta(time, motion[i]))
+        velocity.append(calc_delta(motion[i], TIME_PERIOD))
         # calculates the rate of change of rate of change of 3D motion (rate of change of velocity)
-        acceleration.append(calc_delta(time, velocity[i]))
+        acceleration.append(calc_delta(velocity[i], TIME_PERIOD))
         # uses the past data as a feature
         past_motion.append(normalise(shift(motion[i])))  # previous value
 

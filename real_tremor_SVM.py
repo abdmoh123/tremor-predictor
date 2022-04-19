@@ -17,6 +17,7 @@ np.set_printoptions(threshold=50)  # shortens long arrays in the console window
 def main():
     file_name = "./data/real_tremor_data.csv"
     training_testing_ratio = 0.8
+    TIME_PERIOD = 1 / 250
 
     start_time = datetime.now()
     # reads data into memory and filters it
@@ -25,7 +26,7 @@ def main():
     # 80% of data is used for training
     training_data = data[:, :int(training_testing_ratio * len(data[0]))]  # first 80% of data for training
     filtered_training_data = filtered_data[:, :int(training_testing_ratio * len(filtered_data[0]))]  # training labels
-    time = np.array(data[0], dtype='f') / 250  # samples are measured at a rate of 250Hz
+    time = np.array(data[0], dtype='f') * TIME_PERIOD  # samples are measured at a rate of 250Hz
     end_time = datetime.now()
     # time taken to read and split the data
     data_reading_time = (end_time - start_time).total_seconds()
@@ -43,7 +44,7 @@ def main():
 
     start_time = datetime.now()
     # calculates the features in a separate function
-    [training_features, horizon] = fh.gen_features(time, training_motion, training_label)
+    [training_features, horizon] = fh.gen_features(TIME_PERIOD, training_motion, training_label)
     end_time = datetime.now()
     # time taken to create training features
     training_features_time = (end_time - start_time).total_seconds()
@@ -96,7 +97,7 @@ def main():
 
     start_time = datetime.now()
     # calculates the features in a separate function
-    test_features = fh.gen_features(time, test_motion, test_label, horizon)
+    test_features = fh.gen_features(TIME_PERIOD, test_motion, test_label, horizon)
     end_time = datetime.now()
     # time taken to create test data features
     test_features_time = (end_time - start_time).total_seconds()
