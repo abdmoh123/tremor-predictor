@@ -32,21 +32,22 @@ def main():
 
     """ Prediction phase """
     # skips all the samples being 'streamed' while the model was trained
-    prediction_start = round(training_time / TIME_PERIOD) + N_SAMPLES  # index must be an integer
+    prediction_start = N_SAMPLES + round(training_time / TIME_PERIOD)  # index must be an integer
     print("Predictions start at index:", prediction_start)
+    BUFFER_LENGTH = 10
     # performs the predictions using the trained model
     [total_predictions, predicting_times, wait_time] = predict_outputs(
         data,
         regression,
         horizon,
         prediction_start,
-        N_SAMPLES,
+        BUFFER_LENGTH,
         TIME_PERIOD
     )
 
     """ Evaluation phase """
     times = [reading_times, filtering_time, training_time, predicting_times, wait_time]
-    start_index = prediction_start + N_SAMPLES
+    start_index = prediction_start + BUFFER_LENGTH
     evaluate_model(times, data, start_index, total_predictions, TIME_PERIOD)
 
 
@@ -194,14 +195,15 @@ def evaluate_model(times, data, start_index, total_predictions, TIME_PERIOD):
 
     total_reading_time = sum(reading_times)
     total_filtering_time = filtering_time
-    avg_prediction_time = np.mean(predicting_times)
-    index_step = round(predicting_times[len(predicting_times) - 1] / TIME_PERIOD)  # index must be an integer
     print(
         "\nTotal time filling buffer:", total_reading_time,
         "\nTotal time filtering data:", total_filtering_time,
         "\nTotal time taken during training/tuning:", training_time,
-        "\nAverage time taken to predict voluntary motion:", avg_prediction_time,
-        "\nAverage samples skipped during prediction:", index_step,
+        "\nAverage time taken to predict voluntary motion:", np.mean(predicting_times),
+        "\nAverage samples skipped during prediction:", round(np.mean(predicting_times) / TIME_PERIOD),
+        "\nMaximum time taken for a prediction:", np.max(predicting_times),
+        "\nMinimum time taken for a prediction:", np.min(predicting_times),
+        "\nMaximum samples skipped during prediction:", round(np.max(predicting_times) / TIME_PERIOD),
         "\nTotal prediction time:", sum(predicting_times), "+", wait_time, "=", (sum(predicting_times) + wait_time)
     )
 
