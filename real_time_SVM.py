@@ -196,15 +196,19 @@ def predict_outputs(motion, regression, horizon, prediction_start, buffer_length
             total_predictions.append(value)
 
         end_time = datetime.now()
+        predict_time = (end_time - start_time).total_seconds()
+        # limits prediction time to the sample time period (can't be faster than input 'stream')
+        if predict_time < TIME_PERIOD:
+            predict_time = TIME_PERIOD
         # measures time taken for predicting
-        predicting_times.append((end_time - start_time).total_seconds())
+        predicting_times.append(predict_time)
 
         # ensures the last sample is not missed
         if (i + index_step) > len(motion) and i != (len(motion) - 1):
             index_step = len(motion) - i - 1
         else:
             # skips all the samples being 'streamed' while the program performed predictions
-            index_step = round(predicting_times[len(predicting_times) - 1] / TIME_PERIOD) + 1  # must be an integer
+            index_step = round(predict_time / TIME_PERIOD)  # must be an integer
         i += index_step
 
     return total_predictions, predicting_times, sum(reading_times)
@@ -219,6 +223,7 @@ def evaluate_model(times, data, start_index, total_predictions, TIME_PERIOD):
     predicting_times = times[3]
     wait_time = times[4]
 
+    # prints time based performance results
     total_reading_time = [sum(reading_times[0]), sum(reading_times[1]), sum(reading_times[2])]
     total_filtering_time = filtering_time
     avg_predicting_times = [np.mean(predicting_times[0]), np.mean(predicting_times[1]), np.mean(predicting_times[2])]
@@ -228,15 +233,18 @@ def evaluate_model(times, data, start_index, total_predictions, TIME_PERIOD):
     max_index_skipped = np.round(np.divide(max_predicting_times, TIME_PERIOD))
     total_prediction_time = [sum(predicting_times[0]), sum(predicting_times[1]), sum(predicting_times[2])]
     print(
-        "\nTotal time filling buffer [X, Y, Z]:", total_reading_time,
-        "\nTotal time filtering data [X, Y, Z]:", total_filtering_time,
-        "\nTotal time taken during training/tuning [X, Y, Z]:", training_time,
-        "\nAverage time taken to predict voluntary motion [X, Y, Z]:", avg_predicting_times,
+        "\nTotal time filling buffer:", np.max(total_reading_time),
+        "\nTotal time filtering data:", np.max(total_filtering_time),
+        "\nTotal time taken during training/tuning:", np.max(training_time),
+        "\nAverage time taken to predict voluntary motion:", np.max(avg_predicting_times),
         "\nAverage samples per prediction loop [X, Y, Z]:", avg_index_skipped,
         "\nMaximum time taken for a prediction [X, Y, Z]:", max_predicting_times,
         "\nMinimum time taken for a prediction [X, Y, Z]:", min_predicting_times,
         "\nMaximum samples per prediction loop [X, Y, Z]:", max_index_skipped,
-        "\nTotal prediction time [X, Y, Z]:", total_prediction_time, "+", wait_time, "=", np.add(total_prediction_time, wait_time)
+        "\nTotal prediction time:",
+        np.max(total_prediction_time), "+",
+        np.max(wait_time), "=",
+        np.max(np.add(total_prediction_time, wait_time))
     )
 
     # truncates the data to the same length as the predictions
