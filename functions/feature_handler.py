@@ -48,7 +48,7 @@ def shift(data, shift_value=1):
     return new_data
 
 
-def gen_features(TIME_PERIOD, motion, labels=None, horizon=None):
+def gen_all_features(TIME_PERIOD, motion, labels=None, horizon=None):
     velocity = []  # feature 2
     acceleration = []  # feature 3
     past_motion = []  # feature 4
@@ -109,6 +109,62 @@ def gen_features(TIME_PERIOD, motion, labels=None, horizon=None):
             # adds the average feature to the features list
             features[i].append(average)
         return features
+    else:
+        # quits the program if an argument is missing
+        print("\nMissing argument! (horizon or labels)")
+        exit()
+
+
+def gen_features(TIME_PERIOD, motion, labels=None, horizon=None):
+    # calculates the rate of change of 3D motion
+    velocity = calc_delta(motion, TIME_PERIOD)
+    # calculates the rate of change of rate of change of 3D motion (rate of change of velocity)
+    acceleration = calc_delta(velocity, TIME_PERIOD)
+    # uses the past data as a feature
+    past_motion = normalise(shift(motion))  # previous value
+
+    # smoothing and normalising the velocity and acceleration
+    velocity = normalise(calc_average(velocity, 5))
+    acceleration = normalise(calc_average(acceleration, 5))
+
+    # finds the optimum C and horizon values if no horizon values are inputted
+    if (horizon is None) and (labels is not None):
+        # puts all existing features in a list for model optimisation
+        features = [
+            motion,
+            velocity,
+            acceleration,
+            past_motion
+        ]
+
+        # finds the optimum value for horizon
+        # print("Optimising horizons...")
+        # horizon = []
+        # # only required to run once
+        # for i in range(len(features)):
+        #     horizon.append(op.optimise_parameter(features[i], labels[i], "horizon"))
+        # print("Done!")
+
+        # used to save time (optimising is only required once)
+        horizon = 30
+
+        # calculates the average 3D motion
+        average = normalise(calc_average(motion, horizon))  # last feature
+        # adds the average feature to the features list
+        features.append(average)
+        return features, horizon
+    elif horizon is not None:
+        # calculates the average 3D motion
+        average = normalise(calc_average(motion, horizon))  # last feature
+
+        # returns features as a list
+        return [
+            motion,
+            velocity,
+            acceleration,
+            past_motion,
+            average
+        ]
     else:
         # quits the program if an argument is missing
         print("\nMissing argument! (horizon or labels)")

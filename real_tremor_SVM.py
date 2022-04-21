@@ -44,14 +44,14 @@ def main():
 
     start_time = datetime.now()
     # calculates the features in a separate function
-    [training_features, horizon] = fh.gen_features(TIME_PERIOD, training_motion, training_label)
+    [training_features, horizon] = fh.gen_all_features(TIME_PERIOD, training_motion, training_label)
     end_time = datetime.now()
     # time taken to create training features
     training_features_time = (end_time - start_time).total_seconds()
     # prints the optimised values
     print("Horizon values [x, y, z]:", horizon)
 
-    # SVM with rbf kernel (x axis)
+    # SVM with rbf kernel
     regression = []
     hyperparameters = []
     preset_params = [  # [C, epsilon]
@@ -97,7 +97,7 @@ def main():
 
     start_time = datetime.now()
     # calculates the features in a separate function
-    test_features = fh.gen_features(TIME_PERIOD, test_motion, test_label, horizon)
+    test_features = fh.gen_all_features(TIME_PERIOD, test_motion, test_label, horizon)
     end_time = datetime.now()
     # time taken to create test data features
     test_features_time = (end_time - start_time).total_seconds()

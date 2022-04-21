@@ -3,57 +3,40 @@ import functions.data_handler as dh
 
 
 class Buffer:
-    def __init__(self, x, y, z, MAX_LENGTH):
-        self._x = x
-        self._y = y
-        self._z = z
+    def __init__(self, content, MAX_LENGTH):
+        self._content = content
         self._length = MAX_LENGTH
 
     # adds data to the buffer while remaining within maximum length (like a real buffer)
     def add(self, motion):
-        self._x.append(motion[0])  # X
-        self._y.append(motion[1])  # Y
-        self._z.append(motion[2])  # Z
+        self._content.append(motion)
+        self.update()
 
-        # prevents the buffer from exceeding the maximum length
-        if len(self._x) > self._length or len(self._y) > self._length or len(self._z) > self._length:
-            self._x = self._x[len(self._x) - self._length:]
-            self._y = self._y[len(self._y) - self._length:]
-            self._z = self._z[len(self._z) - self._length:]
+    # prevents the buffer from exceeding the maximum length
+    def update(self):
+        if len(self._content) > self._length:
+            self._content = self._content[len(self._content) - self._length:]
 
     # returns a filtered version of its contents
     def filter(self, TIME_PERIOD):
-        f_x = dh.filter_data(self._x, TIME_PERIOD)
-        f_y = dh.filter_data(self._y, TIME_PERIOD)
-        f_z = dh.filter_data(self._z, TIME_PERIOD)
-        return [f_x, f_y, f_z]
+        return dh.filter_data(self._content, TIME_PERIOD)
 
     # returns a normalised version of its contents
     def normalise(self):
-        n_x = fh.normalise(self._x)
-        n_y = fh.normalise(self._y)
-        n_z = fh.normalise(self._z)
-        return [n_x, n_y, n_z]
+        return fh.normalise(self._content)
 
-    # returns a list of midpoints and spreads for each axis in the data
+    # returns midpoint and spread of its contents
     def get_data_attributes(self):
-        midpoints = []  # [X, Y, Z]
-        spreads = []  # [X, Y, Z]
-        for axis in self.content:
-            [mid, spread] = fh.get_norm_attributes(axis)
-            midpoints.append(mid)
-            spreads.append(spread)
-        return midpoints, spreads
+        return fh.get_norm_attributes(self.content)  # returns [mid, sigma]
 
     @property
     def content(self):
-        return [self._x, self._y, self._z]
+        return self._content
 
     @content.setter
     def content(self, data):
-        self._x = data[0]
-        self._y = data[1]
-        self._z = data[2]
+        self._content = data
+        self.update()
 
     @property
     def length(self):
@@ -62,3 +45,4 @@ class Buffer:
     @length.setter
     def length(self, value):
         self._length = value
+        self.update()

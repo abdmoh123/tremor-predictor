@@ -1,6 +1,8 @@
 # libraries imported
 import numpy as np
 from datetime import datetime
+import multiprocessing
+import concurrent.futures
 
 
 # functions that apply to both simulated and real tremor
@@ -23,49 +25,87 @@ def main():
 
     # reads data into memory and filters it
     data = dh.read_data(FILE_NAME, 200, 3000)  # real tremor data (t, x, y, z, grip force)
+    motion = [data[1], data[2], data[3]]
 
-    """ Buffer filling phase """
-    [motion_buffer, label_buffer, reading_times, filtering_time] = fill_buffers(data, N_SAMPLES, TIME_PERIOD)
+    with concurrent.futures.ProcessPoolExecutor() as exe:
+        """ Buffer filling phase """
+        # returns [motion_buffer, label_buffer, reading_times, filtering_time]
+        buffer_fill_results = exe.map(
+            fill_buffers,
+            motion,
+            [N_SAMPLES, N_SAMPLES, N_SAMPLES],
+            [TIME_PERIOD, TIME_PERIOD, TIME_PERIOD]
+        )
+        # binds results to variables
+        motion_buffer = []
+        label_buffer = []
+        reading_times = []
+        filtering_times = []
+        for result in buffer_fill_results:
+            motion_buffer.append(result[0])
+            label_buffer.append(result[1])
+            reading_times.append(result[2])
+            filtering_times.append(result[3])
 
-    """ Training and tuning phase """
-    [regression, horizon, training_time] = train_model(motion_buffer, label_buffer, TIME_PERIOD)
+        """ Training and tuning phase """
+        # returns [regression, horizon, training_time]
+        training_results = exe.map(
+            train_model,
+            motion_buffer,
+            label_buffer,
+            [TIME_PERIOD, TIME_PERIOD, TIME_PERIOD]
+        )
+        # binds results to variables
+        regression = []
+        horizon = []
+        training_times = []
+        for result in training_results:
+            regression.append(result[0])
+            horizon.append(result[1])
+            training_times.append(result[2])
 
-    """ Prediction phase """
-    # skips all the samples being 'streamed' while the model was trained
-    prediction_start = N_SAMPLES + round(training_time / TIME_PERIOD)  # index must be an integer
-    print("Predictions start at index:", prediction_start)
-    BUFFER_LENGTH = 10
-    # performs the predictions using the trained model
-    [total_predictions, predicting_times, wait_time] = predict_outputs(
-        data,
-        regression,
-        horizon,
-        prediction_start,
-        BUFFER_LENGTH,
-        TIME_PERIOD
-    )
+        """ Prediction phase """
+        # skips all the samples being 'streamed' while the model was trained
+        prediction_start = N_SAMPLES + round(np.max(training_times) / TIME_PERIOD)  # index must be an integer
+        print("Predictions start at index:", prediction_start)
+        BUFFER_LENGTH = 10
+        # returns [total_predictions, predicting_times, wait_time]
+        prediction_results = exe.map(
+            predict_outputs,
+            motion,
+            regression,
+            horizon,
+            [prediction_start, prediction_start, prediction_start],
+            [BUFFER_LENGTH, BUFFER_LENGTH, BUFFER_LENGTH],
+            [TIME_PERIOD, TIME_PERIOD, TIME_PERIOD]
+        )
+        # binds results to variables
+        total_predictions = []
+        predicting_times = []
+        wait_times = []
+        for result in prediction_results:
+            total_predictions.append(result[0])
+            predicting_times.append(result[1])
+            wait_times.append(result[2])
 
-    """ Evaluation phase """
-    times = [reading_times, filtering_time, training_time, predicting_times, wait_time]
-    start_index = prediction_start + BUFFER_LENGTH
-    evaluate_model(times, data, start_index, total_predictions, TIME_PERIOD)
+        """ Evaluation phase """
+        times = [reading_times, filtering_times, training_times, predicting_times, wait_times]
+        start_index = prediction_start + BUFFER_LENGTH
+        evaluate_model(times, data, start_index, total_predictions, TIME_PERIOD)
 
 
 # fills all buffers with data (in the beginning)
 def fill_buffers(data, N_SAMPLES, TIME_PERIOD, prediction=False):
-    motion_buffer = Buffer([], [], [], N_SAMPLES)
-    label_buffer = Buffer([], [], [], N_SAMPLES)
+    motion_buffer = Buffer([], N_SAMPLES)
+    label_buffer = Buffer([], N_SAMPLES)
 
     print("\nFilling buffer...")
     reading_times = []
     for i in range(N_SAMPLES):
         start_time = datetime.now()
 
-        print("\nProgress:\n", int(100 * (i + 1) / N_SAMPLES), "%")  # prints progress (for testing purposes)
-
-        current_motion = [data[1][i], data[2][i], data[3][i]]
         # buffer is updated
-        motion_buffer.add(current_motion)
+        motion_buffer.add(data[i])
 
         end_time = datetime.now()
         reading_time = (end_time - start_time).total_seconds()
@@ -86,8 +126,10 @@ def fill_buffers(data, N_SAMPLES, TIME_PERIOD, prediction=False):
         # measures time taken for each iteration
         filtering_time = (end_time - start_time).total_seconds()
 
+        print("\nDone!\n")
         return motion_buffer, label_buffer, reading_times, filtering_time
     else:
+        print("\nDone!\n")
         return motion_buffer, reading_times
 
 
@@ -98,19 +140,16 @@ def train_model(motion_buffer, label_buffer, TIME_PERIOD):
     # calculates the features in a separate function
     [features, horizon] = fh.gen_features(TIME_PERIOD, motion_buffer.normalise(), label_buffer.normalise())
 
-    # SVM with rbf kernel (x axis)
-    regression = []
-    hyperparameters = []
+    # SVM with rbf kernel
     print("Tuning...")
-    for j in range(len(features)):
-        # reformats the features for fitting the model (numpy array)
-        axis_features = np.vstack(features[j]).T
-        # tunes and trains the regression model
-        regression.append(op.tune_model(axis_features, label_buffer.normalise()[j]))
-        hyperparameters.append(regression[j].best_params_)
+    # reformats the features for fitting the model (numpy array)
+    features = np.vstack(features).T
+    # tunes and trains the regression model
+    regression = op.tune_model(features, label_buffer.normalise())
+    hyperparameters = regression.best_params_
     print("Done!")
-    print("\nHyperparameters [{x}, {y}, {z}]:", hyperparameters)
-    print("Horizon values [x, y, z]:", horizon)  # prints the optimised values
+    print("\nHyperparameters:", hyperparameters)
+    print("Horizon value:", horizon)  # prints the optimised values
 
     end_time = datetime.now()
     # measures time taken for training the model
@@ -120,65 +159,52 @@ def train_model(motion_buffer, label_buffer, TIME_PERIOD):
 
 
 # predicts outputs using an already trained regression model (SVM)
-def predict_outputs(data, regression, horizon, prediction_start, buffer_length, TIME_PERIOD):
-    total_predictions = [[], [], []]
+def predict_outputs(motion, regression, horizon, prediction_start, buffer_length, TIME_PERIOD):
+    total_predictions = []
     predicting_times = []
 
     # skips data past prediction_start (time spent training the model)
-    data = [
-        data[0][prediction_start:],  # index
-        data[1][prediction_start:],  # X
-        data[2][prediction_start:],  # Y
-        data[3][prediction_start:],  # Z
-        data[4][prediction_start:],  # grip force
-    ]
+    motion = motion[prediction_start:]
 
     # fills buffer in prediction mode (no label generation)
-    [motion_buffer, reading_times] = fill_buffers(data, buffer_length, TIME_PERIOD, True)
-    label_buffer = Buffer([], [], [], buffer_length)
+    [motion_buffer, reading_times] = fill_buffers(motion, buffer_length, TIME_PERIOD, True)
+    label_buffer = Buffer([], buffer_length)
 
     i = buffer_length  # skips all data already added to the buffer
     index_step = 1  # no skipping in the beginning
-    while i < len(data[0]):
+    while i < len(motion):
         start_time = datetime.now()
 
         # loop allows missed data to be saved to buffer
         for j in range(index_step, 0, -1):
-            current_motion = [data[1][i - j], data[2][i - j], data[3][i - j]]
-            motion_buffer.add(current_motion)
+            motion_buffer.add(motion[i - j])
+        # motion is filtered for denormalisation
         label_buffer.content = motion_buffer.filter(TIME_PERIOD)
 
         # generates features out of the data in the buffer
         features = fh.gen_features(TIME_PERIOD, motion_buffer.normalise(), horizon=horizon)
         # gets midpoints and spreads to denormalise the predictions
-        [midpoints, sigmas] = label_buffer.get_data_attributes()
+        [midpoint, sigma] = label_buffer.get_data_attributes()
 
-        # predicts intended motion using the original data as an input (scaled to intended motion)
-        prediction = []
-        for j in range(len(features)):
-            # reformats the features for fitting the model (numpy array)
-            axis_features = np.vstack(features[j]).T
-            # predicts the voluntary motion and denormalises it to the correct scale
-            prediction.append(fh.denormalise(regression[j].predict(axis_features), midpoints[j], sigmas[j]))
-            # selects and saves only the new predictions to an external array for evaluation
-            new_predictions = prediction[j][len(prediction[j]) - index_step:len(prediction[j])]
-            for value in new_predictions:
-                total_predictions[j].append(value)
-
-        # prints progress (for testing purposes)
-        print("\nProgress:\n", int(100 * (i + prediction_start + 1) / (len(data[0]) + prediction_start)), "%")
+        # reformats the features for fitting the model (numpy array)
+        features = np.vstack(features).T
+        # predicts the voluntary motion and denormalises it to the correct scale
+        prediction = fh.denormalise(regression.predict(features), midpoint, sigma)
+        # selects and saves only the new predictions to an external array for evaluation
+        new_predictions = prediction[len(prediction) - index_step:len(prediction)]
+        for value in new_predictions:
+            total_predictions.append(value)
 
         end_time = datetime.now()
         # measures time taken for predicting
         predicting_times.append((end_time - start_time).total_seconds())
 
         # ensures the last sample is not missed
-        if (i + index_step) > len(data[0]) and i != (len(data[0]) - 1):
-            index_step = len(data[0]) - i - 1
+        if (i + index_step) > len(motion) and i != (len(motion) - 1):
+            index_step = len(motion) - i - 1
         else:
             # skips all the samples being 'streamed' while the program performed predictions
-            index_step = round(predicting_times[len(predicting_times) - 1] / TIME_PERIOD)  # index must be an integer
-        print("\nCurrent index:", i, "/", len(data[0]), ", Next index:", int(i + index_step))
+            index_step = round(predicting_times[len(predicting_times) - 1] / TIME_PERIOD) + 1  # must be an integer
         i += index_step
 
     return total_predictions, predicting_times, sum(reading_times)
@@ -193,27 +219,28 @@ def evaluate_model(times, data, start_index, total_predictions, TIME_PERIOD):
     predicting_times = times[3]
     wait_time = times[4]
 
-    total_reading_time = sum(reading_times)
+    total_reading_time = [sum(reading_times[0]), sum(reading_times[1]), sum(reading_times[2])]
     total_filtering_time = filtering_time
+    avg_predicting_times = [np.mean(predicting_times[0]), np.mean(predicting_times[1]), np.mean(predicting_times[2])]
+    max_predicting_times = [np.max(predicting_times[0]), np.max(predicting_times[1]), np.max(predicting_times[2])]
+    min_predicting_times = [np.min(predicting_times[0]), np.min(predicting_times[1]), np.min(predicting_times[2])]
+    avg_index_skipped = np.round(np.divide(avg_predicting_times, TIME_PERIOD))
+    max_index_skipped = np.round(np.divide(max_predicting_times, TIME_PERIOD))
+    total_prediction_time = [sum(predicting_times[0]), sum(predicting_times[1]), sum(predicting_times[2])]
     print(
-        "\nTotal time filling buffer:", total_reading_time,
-        "\nTotal time filtering data:", total_filtering_time,
-        "\nTotal time taken during training/tuning:", training_time,
-        "\nAverage time taken to predict voluntary motion:", np.mean(predicting_times),
-        "\nAverage samples skipped during prediction:", round(np.mean(predicting_times) / TIME_PERIOD),
-        "\nMaximum time taken for a prediction:", np.max(predicting_times),
-        "\nMinimum time taken for a prediction:", np.min(predicting_times),
-        "\nMaximum samples skipped during prediction:", round(np.max(predicting_times) / TIME_PERIOD),
-        "\nTotal prediction time:", sum(predicting_times), "+", wait_time, "=", (sum(predicting_times) + wait_time)
+        "\nTotal time filling buffer [X, Y, Z]:", total_reading_time,
+        "\nTotal time filtering data [X, Y, Z]:", total_filtering_time,
+        "\nTotal time taken during training/tuning [X, Y, Z]:", training_time,
+        "\nAverage time taken to predict voluntary motion [X, Y, Z]:", avg_predicting_times,
+        "\nAverage samples per prediction loop [X, Y, Z]:", avg_index_skipped,
+        "\nMaximum time taken for a prediction [X, Y, Z]:", max_predicting_times,
+        "\nMinimum time taken for a prediction [X, Y, Z]:", min_predicting_times,
+        "\nMaximum samples per prediction loop [X, Y, Z]:", max_index_skipped,
+        "\nTotal prediction time [X, Y, Z]:", total_prediction_time, "+", wait_time, "=", np.add(total_prediction_time, wait_time)
     )
 
     # truncates the data to the same length as the predictions
-    motion = [
-        data[1][start_index:],
-        data[2][start_index:],
-        data[3][start_index:]
-    ]
-
+    motion = [data[1][start_index:], data[2][start_index:], data[3][start_index:]]
     filtered_motion = []
     overall_accuracy = []
     # calculates the labels and accuracy of the truncated data
@@ -228,10 +255,10 @@ def evaluate_model(times, data, start_index, total_predictions, TIME_PERIOD):
         "\nZ [R2, NRMSE]: [" + str(overall_accuracy[2][0]) + "%" + ", " + str(overall_accuracy[2][1]) + "]"
     )
 
+    # gets the tremor component by subtracting from the voluntary motion
     actual_tremor = []
     predicted_tremor = []
     overall_tremor_accuracy = []
-    # gets the tremor component by subtracting from the voluntary motion
     for i in range(len(motion)):
         actual_tremor.append(np.subtract(motion[i], filtered_motion[i]))
         predicted_tremor.append(np.subtract(motion[i], total_predictions[i]))
