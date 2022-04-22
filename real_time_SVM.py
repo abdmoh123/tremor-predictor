@@ -1,8 +1,8 @@
 # libraries imported
 import numpy as np
 from datetime import datetime
-import multiprocessing
 import concurrent.futures
+import os
 
 
 # functions that apply to both simulated and real tremor
@@ -17,9 +17,8 @@ from classes.buffer import Buffer
 np.set_printoptions(threshold=50)  # shortens long arrays in the console window
 
 
-def main():
+def main(FILE_NAME):
     """ Constants """
-    FILE_NAME = "./data/real_tremor_data.csv"
     TIME_PERIOD = 1 / 250  # a sample is recorded every 0.004 seconds
     N_SAMPLES = 500  # more samples = more accuracy but slower speed
 
@@ -307,4 +306,20 @@ def evaluate_model(times, data, start_index, total_predictions, TIME_PERIOD):
 
 
 if __name__ == '__main__':
-    main()
+    # finds the directory
+    folder_name = "/Surgeon Tracing/"
+    directory_name = "C:/Users/Abdul/OneDrive - Newcastle University/Stage 3/Obsidian Vault/EEE3095-7 Individual Project and Dissertation/Tremor ML/data/" + folder_name[1:]
+    directory = os.fsencode(directory_name)
+
+    # allows a specific file to be selected instead of an entire directory
+    override_file = ""
+    if len(override_file) > 0:
+        main("./data" + override_file)
+    else:
+        # puts all txt files' names in a list
+        file_names = []
+        for file in os.listdir(directory):
+            file_names.append(os.fsdecode(file))
+        # runs predictor algorithm for each dataset
+        for file_name in file_names:
+            main("./data" + folder_name + file_name)
