@@ -67,12 +67,12 @@ def main():
         axis_features = np.vstack(training_features[i]).T
         # tunes and trains the regression model
         # regression.append(op.tune_model(axis_features, training_label[i]))
-        regression.append(op.tune_model(axis_features, training_label[i], "SVM", preset_params[i]))  # to save time
+        [temp_reg, temp_params] = op.tune_model(axis_features, training_label[i], "SVM", preset_params[i])
+        regression.append(temp_reg)
+        hyperparameters.append(temp_params)
+
         end_time = datetime.now()
         tuned_training_time.append((end_time - start_time).total_seconds())
-
-        # hyperparameters.append(regression[i].best_params_)
-        hyperparameters.append(regression[i].get_params())  # to save time
     print("Done!")
     print("\nHyperparameters (x, y, z):\n", hyperparameters)
     print("\nTraining features (x, y, z):\n", np.array(training_features))
