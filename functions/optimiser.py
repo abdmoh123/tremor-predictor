@@ -1,5 +1,6 @@
 import numpy as np
 from sklearn import svm
+from sklearn.ensemble import RandomForestRegressor
 from sklearn.experimental import enable_halving_search_cv
 from sklearn.model_selection import HalvingGridSearchCV
 
@@ -7,26 +8,42 @@ import functions.feature_handler as fh
 import functions.evaluator as eva
 
 
-# finds the optimal regularisation parameter (C) and gamma for an SVM regression model
-def tune_model(features, labels, parameters=None):
-    if parameters is None:
-        # hyperparameter choices are tested to find the best combination
-        parameters = {
-            'kernel': ['rbf'],
-            'C': [0.01, 0.1, 1, 10, 100],
-            'epsilon': [0.01, 0.1, 1, 10, 100]
-        }
-        # HalvingGridSearch is used instead of GridSearch to speed up the tuning process
-        regression = HalvingGridSearchCV(svm.SVR(), parameters)  # SVM regression
+# finds the optimal hyperparameters for a regression model (SVM or Random forest)
+def tune_model(features, labels, model_type, parameters=None):
+    if model_type == "SVM":
+        if parameters is None:
+            # hyperparameter choices are tested to find the best combination
+            parameters = {
+                'kernel': ['rbf'],
+                'C': [0.01, 0.1, 1, 10, 100],
+                'epsilon': [0.01, 0.1, 1, 10, 100]
+            }
+            # HalvingGridSearch is used instead of GridSearch to speed up the tuning process
+            regression = HalvingGridSearchCV(svm.SVR(), parameters)  # SVM regression
+            parameters = regression.best_params_
+        else:
+            # model parameters are set based on input
+            regression = svm.SVR(
+                kernel="rbf",
+                C=parameters[0],
+                epsilon=parameters[1]
+            )
+        regression.fit(features, labels)  # fit based on R^2 metric
+        return regression, parameters
+    elif model_type == "Random Forest":
+        # HalvingGridSearch not used as it was too slow
+        if parameters is None:
+            parameters = [1000, None]
+        # hyperparameters are set (no optimisation)
+        regression = RandomForestRegressor(
+            n_estimators=parameters[0],
+            max_features=parameters[1]
+            )
+        regression.fit(features, labels)  # fit based on R^2 metric
+        return regression, parameters
     else:
-        # model parameters are set based on input
-        regression = svm.SVR(
-            kernel="rbf",
-            C=parameters[0],
-            epsilon=parameters[1]
-        )
-    regression.fit(features, labels)  # fit based on R^2 metric (default)
-    return regression
+        print("Invalid model type!")
+        exit()
 
 
 # finds the parameter value that generates the optimal feature values for an SVM regression model

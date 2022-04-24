@@ -1,4 +1,6 @@
 # libraries imported
+import time
+
 import numpy as np
 from datetime import datetime
 import concurrent.futures
@@ -17,7 +19,7 @@ from classes.buffer import Buffer
 np.set_printoptions(threshold=50)  # shortens long arrays in the console window
 
 
-def main(FILE_NAME):
+def main(FILE_NAME, model_type):
     """ Constants """
     TIME_PERIOD = 1 / 250  # a sample is recorded every 0.004 seconds
     N_SAMPLES = 500  # more samples = more accuracy but slower speed
@@ -52,6 +54,7 @@ def main(FILE_NAME):
             train_model,
             motion_buffer,
             label_buffer,
+            [model_type, model_type, model_type],
             [TIME_PERIOD, TIME_PERIOD, TIME_PERIOD]
         )
         # binds results to variables
@@ -133,7 +136,7 @@ def fill_buffers(data, N_SAMPLES, TIME_PERIOD, prediction=False):
 
 
 # trains and tunes a regression model (SVM)
-def train_model(motion_buffer, label_buffer, TIME_PERIOD):
+def train_model(motion_buffer, label_buffer, model_type, TIME_PERIOD):
     start_time = datetime.now()
 
     # calculates the features in a separate function
@@ -144,8 +147,7 @@ def train_model(motion_buffer, label_buffer, TIME_PERIOD):
     # reformats the features for fitting the model (numpy array)
     features = np.vstack(features).T
     # tunes and trains the regression model
-    regression = op.tune_model(features, label_buffer.normalise())
-    hyperparameters = regression.best_params_
+    [regression, hyperparameters] = op.tune_model(features, label_buffer.normalise(), model_type)
     print("Done!")
     print("\nHyperparameters:", hyperparameters)
     print("Horizon value:", horizon)  # prints the optimised values
@@ -306,15 +308,18 @@ def evaluate_model(times, data, start_index, total_predictions, TIME_PERIOD):
 
 
 if __name__ == '__main__':
+    # model = "SVM"
+    model = "Random Forest"
+
     # finds the directory
     folder_name = "/Surgeon Tracing/"
     directory_name = "C:/Users/Abdul/OneDrive - Newcastle University/Stage 3/Obsidian Vault/EEE3095-7 Individual Project and Dissertation/Tremor ML/data/" + folder_name[1:]
     directory = os.fsencode(directory_name)
 
     # allows a specific file to be selected instead of an entire directory
-    override_file = ""
+    override_file = "/real_tremor_data.csv"
     if len(override_file) > 0:
-        main("./data" + override_file)
+        main("./data" + override_file, model)
     else:
         # puts all txt files' names in a list
         file_names = []
@@ -322,4 +327,4 @@ if __name__ == '__main__':
             file_names.append(os.fsdecode(file))
         # runs predictor algorithm for each dataset
         for file_name in file_names:
-            main("./data" + folder_name + file_name)
+            main("./data" + folder_name + file_name, model)

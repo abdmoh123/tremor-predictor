@@ -67,7 +67,7 @@ def main():
         axis_features = np.vstack(training_features[i]).T
         # tunes and trains the regression model
         # regression.append(op.tune_model(axis_features, training_label[i]))
-        regression.append(op.tune_model(axis_features, training_label[i], preset_params[i]))  # to save time
+        regression.append(op.tune_model(axis_features, training_label[i], "SVM", preset_params[i]))  # to save time
         end_time = datetime.now()
         tuned_training_time.append((end_time - start_time).total_seconds())
 
