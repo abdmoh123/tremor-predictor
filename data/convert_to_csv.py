@@ -2,7 +2,7 @@ import os
 
 
 def main():
-    folder_name = "./Surgeon tracing/"
+    folder_name = "./Surgeon Tracing/"
     directory_name = "C:/Users/Abdul/OneDrive - Newcastle University/Stage 3/Obsidian Vault/EEE3095-7 Individual Project and Dissertation/Tremor ML/data/" + folder_name[2:]
     directory = os.fsencode(directory_name)
     file = ""

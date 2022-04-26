@@ -15,7 +15,7 @@ np.set_printoptions(threshold=50)  # shortens long arrays in the console window
 
 
 def main():
-    file_name = "./data/real_tremor_data.csv"
+    file_name = "data/real_tremor_data.csv"
     training_testing_ratio = 0.8
     TIME_PERIOD = 1 / 250
 
@@ -66,16 +66,17 @@ def main():
         # reformats the features for fitting the model (numpy array)
         axis_features = np.vstack(training_features[i]).T
         # tunes and trains the regression model
-        # regression.append(op.tune_model(axis_features, training_label[i]))
-        [temp_reg, temp_params] = op.tune_model(axis_features, training_label[i], "SVM", preset_params[i])
+        # [temp_reg, temp_params] = op.tune_model(axis_features, training_label[i], "SVM")  # with tuning
+        [temp_reg, temp_params] = op.tune_model(axis_features, training_label[i], "SVM", preset_params[i])  # no tuning
+        # [temp_reg, temp_params] = op.tune_model(axis_features, training_label[i], "Random Forest")
         regression.append(temp_reg)
         hyperparameters.append(temp_params)
 
         end_time = datetime.now()
         tuned_training_time.append((end_time - start_time).total_seconds())
     print("Done!")
-    print("\nHyperparameters (x, y, z):\n", hyperparameters)
-    print("\nTraining features (x, y, z):\n", np.array(training_features))
+    print("\nHyperparameters (x, y, z):\n" + str(hyperparameters))
+    print("\nTraining features (x, y, z):\n" + str(np.array(training_features)))
 
     start_time = datetime.now()
     # 20% of the data is separated and used for testing

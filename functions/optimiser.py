@@ -20,7 +20,8 @@ def tune_model(features, labels, model_type, parameters=None):
             }
             # HalvingGridSearch is used instead of GridSearch to speed up the tuning process
             regression = HalvingGridSearchCV(svm.SVR(), parameters)  # SVM regression
-            parameters = regression.best_params_
+            regression.fit(features, labels)  # fit based on R^2 metric
+            parameters = regression.best_params_  # best hyperparameters are saved in list
         else:
             # model parameters are set based on input
             regression = svm.SVR(
@@ -28,12 +29,12 @@ def tune_model(features, labels, model_type, parameters=None):
                 C=parameters[0],
                 epsilon=parameters[1]
             )
-        regression.fit(features, labels)  # fit based on R^2 metric
+            regression.fit(features, labels)  # fit based on R^2 metric
         return regression, parameters
     elif model_type == "Random Forest":
         # HalvingGridSearch not used as it was too slow
         if parameters is None:
-            parameters = [1000, None]
+            parameters = [10, None]
         # hyperparameters are set (no optimisation)
         regression = RandomForestRegressor(
             n_estimators=parameters[0],
