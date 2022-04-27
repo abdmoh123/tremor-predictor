@@ -1,6 +1,4 @@
 # libraries imported
-import time
-
 import numpy as np
 from datetime import datetime
 import concurrent.futures
@@ -59,12 +57,16 @@ def main(FILE_NAME, model_type):
         )
         # binds results to variables
         regression = []
+        hyperparameters = []
         horizon = []
         training_times = []
         for result in training_results:
             regression.append(result[0])
-            horizon.append(result[1])
-            training_times.append(result[2])
+            hyperparameters.append(result[1])
+            horizon.append(result[2])
+            training_times.append(result[3])
+        print("\nHyperparameters:", hyperparameters)  # prints hyperparameters
+        print("Horizon values:", horizon)  # prints the optimised values
 
         """ Prediction phase """
         # skips all the samples being 'streamed' while the model was trained
@@ -128,10 +130,10 @@ def fill_buffers(data, N_SAMPLES, TIME_PERIOD, prediction=False):
         # measures time taken for each iteration
         filtering_time = (end_time - start_time).total_seconds()
 
-        print("\nDone!\n")
+        print("Done!")
         return motion_buffer, label_buffer, reading_times, filtering_time
     else:
-        print("\nDone!\n")
+        print("Done!")
         return motion_buffer, reading_times
 
 
@@ -143,20 +145,18 @@ def train_model(motion_buffer, label_buffer, model_type, TIME_PERIOD):
     [features, horizon] = fh.gen_features(TIME_PERIOD, motion_buffer.normalise(), label_buffer.normalise())
 
     # SVM with rbf kernel
-    print("Tuning...")
+    print("\nTuning...")
     # reformats the features for fitting the model (numpy array)
     features = np.vstack(features).T
     # tunes and trains the regression model
     [regression, hyperparameters] = op.tune_model(features, label_buffer.normalise(), model_type)
     print("Done!")
-    print("\nHyperparameters:", hyperparameters)
-    print("Horizon value:", horizon)  # prints the optimised values
 
     end_time = datetime.now()
     # measures time taken for training the model
     training_time = (end_time - start_time).total_seconds()
 
-    return regression, horizon, training_time
+    return regression, hyperparameters, horizon, training_time
 
 
 # predicts outputs using an already trained regression model (SVM)
@@ -171,6 +171,8 @@ def predict_outputs(motion, regression, horizon, prediction_start, buffer_length
     [motion_buffer, reading_times] = fill_buffers(motion, buffer_length, TIME_PERIOD, True)
     label_buffer = Buffer([], buffer_length)
 
+    print("\nPredicting...")
+
     i = buffer_length  # skips all data already added to the buffer
     index_step = 1  # no skipping in the beginning
     while i < len(motion):
@@ -178,7 +180,7 @@ def predict_outputs(motion, regression, horizon, prediction_start, buffer_length
 
         # loop allows missed data to be saved to buffer
         for j in range(index_step, 0, -1):
-            motion_buffer.add(motion[i - j])
+            motion_buffer.add(motion[i - j + 1])  # +1 ensures that the current motion is added
         # motion is filtered for denormalisation
         label_buffer.content = motion_buffer.filter(TIME_PERIOD)
 
@@ -197,21 +199,19 @@ def predict_outputs(motion, regression, horizon, prediction_start, buffer_length
             total_predictions.append(value)
 
         end_time = datetime.now()
-        predict_time = (end_time - start_time).total_seconds()
-        # limits prediction time to the sample time period (can't be faster than input 'stream')
-        if predict_time < TIME_PERIOD:
-            predict_time = TIME_PERIOD
         # measures time taken for predicting
+        predict_time = (end_time - start_time).total_seconds()
         predicting_times.append(predict_time)
 
+        # skips all the samples being 'streamed' while the program performed predictions
+        index_step = round(predict_time / TIME_PERIOD) + 1  # must be an integer
         # ensures the last sample is not missed
-        if (i + index_step) > len(motion) and i != (len(motion) - 1):
-            index_step = len(motion) - i - 1
-        else:
-            # skips all the samples being 'streamed' while the program performed predictions
-            index_step = round(predict_time / TIME_PERIOD)  # must be an integer
+        if (i + index_step) >= len(motion) and i != (len(motion) - 1):
+            i = len(motion) - 2  # -2 to counteract the effect of index_step = 1
+            index_step = 1
         i += index_step
 
+    print("Finished", len(total_predictions), "predictions!")
     return total_predictions, predicting_times, sum(reading_times)
 
 
@@ -243,9 +243,8 @@ def evaluate_model(times, data, start_index, total_predictions, TIME_PERIOD):
         "\nMinimum time taken for a prediction [X, Y, Z]:", min_predicting_times,
         "\nMaximum samples per prediction loop [X, Y, Z]:", max_index_skipped,
         "\nTotal prediction time:",
-        np.max(total_prediction_time), "+",
-        np.max(wait_time), "=",
-        np.max(np.add(total_prediction_time, wait_time))
+        np.max(np.add(total_prediction_time, wait_time)), "/",
+        (len(predicting_times[0]) * TIME_PERIOD)
     )
 
     # truncates the data to the same length as the predictions
@@ -308,16 +307,16 @@ def evaluate_model(times, data, start_index, total_predictions, TIME_PERIOD):
 
 
 if __name__ == '__main__':
-    # model = "SVM"
-    model = "Random Forest"
+    model = "SVM"
+    # model = "Random Forest"
 
     # finds the directory
-    folder_name = "/Surgeon Tracing/"
+    folder_name = "/Novice Tracing/"
     directory_name = "C:/Users/Abdul/OneDrive - Newcastle University/Stage 3/Obsidian Vault/EEE3095-7 Individual Project and Dissertation/Tremor ML/data/" + folder_name[1:]
     directory = os.fsencode(directory_name)
 
     # allows a specific file to be selected instead of an entire directory
-    override_file = "/real_tremor_data.csv"
+    override_file = ""
     if len(override_file) > 0:
         main("./data" + override_file, model)
     else:
