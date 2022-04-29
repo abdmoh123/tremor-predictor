@@ -1,5 +1,6 @@
 # libraries imported
 import numpy as np
+from scipy import interpolate
 from datetime import datetime
 import concurrent.futures
 import os
@@ -193,6 +194,7 @@ def predict_outputs(motion, regression, horizon, prediction_start, buffer_length
         features = np.vstack(features).T
         # predicts the voluntary motion and denormalises it to the correct scale
         prediction = fh.denormalise(regression.predict(features), midpoint, sigma)
+
         # selects and saves only the new predictions to an external array for evaluation
         new_predictions = prediction[len(prediction) - index_step:len(prediction)]
         for value in new_predictions:
@@ -205,13 +207,15 @@ def predict_outputs(motion, regression, horizon, prediction_start, buffer_length
 
         # skips all the samples being 'streamed' while the program performed predictions
         index_step = round(predict_time / TIME_PERIOD) + 1  # must be an integer
+        if (index_step > buffer_length):
+            print(index_step, "too high")
         # ensures the last sample is not missed
         if (i + index_step) >= len(motion) and i != (len(motion) - 1):
             i = len(motion) - 2  # -2 to counteract the effect of index_step = 1
             index_step = 1
         i += index_step
 
-    print("Finished", len(total_predictions), "predictions!")
+    print("Finished", len(total_predictions), "/", len(motion), "predictions!")
     return total_predictions, predicting_times, sum(reading_times)
 
 
@@ -249,6 +253,20 @@ def evaluate_model(times, data, start_index, total_predictions, TIME_PERIOD):
 
     # truncates the data to the same length as the predictions
     motion = [data[1][start_index:], data[2][start_index:], data[3][start_index:]]
+    # percentage of data not predicted
+    miss_rate = [
+        100 * (1 - (len(total_predictions[0]) / len(motion[0]))),  # X
+        100 * (1 - (len(total_predictions[1]) / len(motion[1]))), # Y
+        100 * (1 - (len(total_predictions[2]) / len(motion[2]))) # Z
+    ]
+    print("\nData loss [X, Y, Z]:", miss_rate)
+    # interpolates the motion data to be the same length as the results
+    for i in range(len(total_predictions)):
+        # fills the gaps in the predictions list caused by skipping samples during prediction
+        interp_pred = interpolate.interp1d(np.arange(len(total_predictions[i])), total_predictions[i])
+        stretched_pred = interp_pred(np.linspace(0, len(total_predictions[i]) - 1, len(motion[i])))
+        total_predictions[i] = stretched_pred
+
     filtered_motion = []
     overall_accuracy = []
     # calculates the labels and accuracy of the truncated data
@@ -312,7 +330,8 @@ if __name__ == '__main__':
 
     # finds the directory
     folder_name = "/Novice Tracing/"
-    directory_name = "C:/Users/Abdul/OneDrive - Newcastle University/Stage 3/Obsidian Vault/EEE3095-7 Individual Project and Dissertation/Tremor ML/data/" + folder_name[1:]
+    # directory_name = "C:/Users/Abdul/OneDrive - Newcastle University/Stage 3/Obsidian Vault/EEE3095-7 Individual Project and Dissertation/Tremor ML/data/" + folder_name[1:]
+    directory_name = "C:/Users/abdha/OneDrive - Newcastle University/Stage 3/Obsidian Vault/EEE3095-7 Individual Project and Dissertation/Tremor ML/data/" + folder_name[1:]
     directory = os.fsencode(directory_name)
 
     # allows a specific file to be selected instead of an entire directory
