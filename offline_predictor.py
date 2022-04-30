@@ -67,8 +67,8 @@ def main():
         axis_features = np.vstack(training_features[i]).T
         # tunes and trains the regression model
         # [temp_reg, temp_params] = op.tune_model(axis_features, training_label[i], "SVM")  # with tuning
-        [temp_reg, temp_params] = op.tune_model(axis_features, training_label[i], "SVM", preset_params[i])  # no tuning
-        # [temp_reg, temp_params] = op.tune_model(axis_features, training_label[i], "Random Forest")
+        # [temp_reg, temp_params] = op.tune_model(axis_features, training_label[i], "SVM", preset_params[i])  # no tuning
+        [temp_reg, temp_params] = op.tune_model(axis_features, training_label[i], "Random Forest")
         regression.append(temp_reg)
         hyperparameters.append(temp_params)
 

@@ -207,8 +207,9 @@ def predict_outputs(motion, regression, horizon, prediction_start, buffer_length
 
         # skips all the samples being 'streamed' while the program performed predictions
         index_step = round(predict_time / TIME_PERIOD) + 1  # must be an integer
-        if (index_step > buffer_length):
-            print(index_step, "too high")
+        # prints when too much data was skipped - some data will not be predicted at all
+        if index_step > buffer_length:
+            print(index_step, "data skipped is too high")
         # ensures the last sample is not missed
         if (i + index_step) >= len(motion) and i != (len(motion) - 1):
             i = len(motion) - 2  # -2 to counteract the effect of index_step = 1
@@ -268,40 +269,38 @@ def evaluate_model(times, data, start_index, total_predictions, TIME_PERIOD):
         total_predictions[i] = stretched_pred
 
     filtered_motion = []
-    overall_accuracy = []
+    accuracy = [[], []]  # [R2, NRMSE]
     # calculates the labels and accuracy of the truncated data
     for i in range(len(motion)):
         filtered_motion.append(dh.filter_data(motion[i], TIME_PERIOD))
-        overall_accuracy.append(eva.calc_accuracy(filtered_motion[i], total_predictions[i]))
+        [temp_R2, temp_rmse] = eva.calc_accuracy(filtered_motion[i], total_predictions[i])
+        accuracy[0].append(temp_R2)
+        accuracy[1].append(temp_rmse)
     # prints the accuracies of the overall voluntary motion (after completion)
     print(
         "\nOverall accuracy",
-        "\nX [R2, NRMSE]: [" + str(overall_accuracy[0][0]) + "%" + ", " + str(overall_accuracy[0][1]) + "]",
-        "\nY [R2, NRMSE]: [" + str(overall_accuracy[1][0]) + "%" + ", " + str(overall_accuracy[1][1]) + "]",
-        "\nZ [R2, NRMSE]: [" + str(overall_accuracy[2][0]) + "%" + ", " + str(overall_accuracy[2][1]) + "]"
+        "\nX [R2, NRMSE]: [" + str(accuracy[0][0]) + "%" + ", " + str(accuracy[1][0]) + "]",
+        "\nY [R2, NRMSE]: [" + str(accuracy[0][1]) + "%" + ", " + str(accuracy[1][1]) + "]",
+        "\nZ [R2, NRMSE]: [" + str(accuracy[0][2]) + "%" + ", " + str(accuracy[1][2]) + "]"
     )
 
     # gets the tremor component by subtracting from the voluntary motion
     actual_tremor = []
     predicted_tremor = []
-    overall_tremor_accuracy = []
+    tremor_accuracy = [[], []]  # [R2, NRMSE]
     for i in range(len(motion)):
         actual_tremor.append(np.subtract(motion[i], filtered_motion[i]))
         predicted_tremor.append(np.subtract(motion[i], total_predictions[i]))
-        overall_tremor_accuracy.append(eva.calc_tremor_accuracy(motion[i], total_predictions[i], filtered_motion[i]))
+        [temp_R2, temp_rmse] = eva.calc_tremor_accuracy(motion[i], total_predictions[i], filtered_motion[i])
+        tremor_accuracy[0].append(temp_R2)
+        tremor_accuracy[1].append(temp_rmse)
     tremor_error = np.subtract(actual_tremor, predicted_tremor)
     # prints the accuracies of the overall tremor component (after completion)
     print(
         "\nOverall tremor accuracy",
-        "\nX [R2, NRMSE]: ["
-        + str(overall_tremor_accuracy[0][0]) + "%" + ", " + str(overall_tremor_accuracy[0][1]) +
-        "]",
-        "\nY [R2, NRMSE]: ["
-        + str(overall_tremor_accuracy[1][0]) + "%" + ", " + str(overall_tremor_accuracy[1][1]) +
-        "]",
-        "\nZ [R2, NRMSE]: ["
-        + str(overall_tremor_accuracy[2][0]) + "%" + ", " + str(overall_tremor_accuracy[2][1]) +
-        "]"
+        "\nX [R2, NRMSE]: [" + str(tremor_accuracy[0][0]) + "%" + ", " + str(tremor_accuracy[1][0]) + "]",
+        "\nY [R2, NRMSE]: [" + str(tremor_accuracy[0][1]) + "%" + ", " + str(tremor_accuracy[1][1]) + "]",
+        "\nZ [R2, NRMSE]: [" + str(tremor_accuracy[0][2]) + "%" + ", " + str(tremor_accuracy[1][2]) + "]"
     )
 
     # puts regression model data in a list
@@ -323,19 +322,21 @@ def evaluate_model(times, data, start_index, total_predictions, TIME_PERIOD):
     plt.plot_model(t[start_index:], model_data, model_axes_labels)  # plots SVR model
     plt.plot_model(t[start_index:], tremor_data, tremor_axes_labels)  # plots the tremor components
 
+    return
+
 
 if __name__ == '__main__':
-    model = "SVM"
-    # model = "Random Forest"
+    # model = "SVM"
+    model = "Random Forest"
 
     # finds the directory
-    folder_name = "/Novice Tracing/"
-    # directory_name = "C:/Users/Abdul/OneDrive - Newcastle University/Stage 3/Obsidian Vault/EEE3095-7 Individual Project and Dissertation/Tremor ML/data/" + folder_name[1:]
-    directory_name = "C:/Users/abdha/OneDrive - Newcastle University/Stage 3/Obsidian Vault/EEE3095-7 Individual Project and Dissertation/Tremor ML/data/" + folder_name[1:]
+    folder_name = "/Novice Pointing/"
+    directory_name = "C:/Users/Abdul/OneDrive - Newcastle University/Stage 3/Obsidian Vault/EEE3095-7 Individual Project and Dissertation/Tremor ML/data/" + folder_name[1:]  # desktop
+    # directory_name = "C:/Users/abdha/OneDrive - Newcastle University/Stage 3/Obsidian Vault/EEE3095-7 Individual Project and Dissertation/Tremor ML/data/" + folder_name[1:]  # laptop
     directory = os.fsencode(directory_name)
 
     # allows a specific file to be selected instead of an entire directory
-    override_file = ""
+    override_file = "/real_tremor_data.csv"
     if len(override_file) > 0:
         main("./data" + override_file, model)
     else:
