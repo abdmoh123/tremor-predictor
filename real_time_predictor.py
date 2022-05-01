@@ -96,7 +96,7 @@ def main(FILE_NAME, model_type):
         """ Evaluation phase """
         times = [reading_times, filtering_times, training_times, predicting_times, wait_times]
         start_index = prediction_start + BUFFER_LENGTH
-        evaluate_model(times, data, start_index, total_predictions, TIME_PERIOD)
+        return evaluate_model(times, data, start_index, total_predictions, TIME_PERIOD)
 
 
 # fills all buffers with data (in the beginning)
@@ -235,16 +235,14 @@ def evaluate_model(times, data, start_index, total_predictions, TIME_PERIOD):
     avg_predicting_times = [np.mean(predicting_times[0]), np.mean(predicting_times[1]), np.mean(predicting_times[2])]
     max_predicting_times = [np.max(predicting_times[0]), np.max(predicting_times[1]), np.max(predicting_times[2])]
     min_predicting_times = [np.min(predicting_times[0]), np.min(predicting_times[1]), np.min(predicting_times[2])]
-    avg_index_skipped = np.round(np.divide(avg_predicting_times, TIME_PERIOD))
     max_index_skipped = np.round(np.divide(max_predicting_times, TIME_PERIOD))
     total_prediction_time = [sum(predicting_times[0]), sum(predicting_times[1]), sum(predicting_times[2])]
     print(
         "\nTotal time filling buffer:", np.max(total_reading_time),
-        "\nTotal time filtering data:", np.max(total_filtering_time),
+        "\nTotal time filtering buffer (generating labels):", np.max(total_filtering_time),
         "\nTotal time taken during training/tuning:", np.max(training_time),
-        "\nAverage time taken to predict voluntary motion:", np.max(avg_predicting_times),
-        "\nAverage samples per prediction loop [X, Y, Z]:", avg_index_skipped,
         "\nMaximum time taken for a prediction [X, Y, Z]:", max_predicting_times,
+        "\nAverage time taken for a prediction [X, Y, Z]:", avg_predicting_times,
         "\nMinimum time taken for a prediction [X, Y, Z]:", min_predicting_times,
         "\nMaximum samples per prediction loop [X, Y, Z]:", max_index_skipped,
         "\nTotal prediction time:",
@@ -257,8 +255,8 @@ def evaluate_model(times, data, start_index, total_predictions, TIME_PERIOD):
     # percentage of data not predicted
     miss_rate = [
         100 * (1 - (len(total_predictions[0]) / len(motion[0]))),  # X
-        100 * (1 - (len(total_predictions[1]) / len(motion[1]))), # Y
-        100 * (1 - (len(total_predictions[2]) / len(motion[2]))) # Z
+        100 * (1 - (len(total_predictions[1]) / len(motion[1]))),  # Y
+        100 * (1 - (len(total_predictions[2]) / len(motion[2])))  # Z
     ]
     print("\nData loss [X, Y, Z]:", miss_rate)
     # interpolates the motion data to be the same length as the results
@@ -322,7 +320,7 @@ def evaluate_model(times, data, start_index, total_predictions, TIME_PERIOD):
     plt.plot_model(t[start_index:], model_data, model_axes_labels)  # plots SVR model
     plt.plot_model(t[start_index:], tremor_data, tremor_axes_labels)  # plots the tremor components
 
-    return
+    return accuracy, tremor_accuracy, np.max(training_time), avg_predicting_times
 
 
 if __name__ == '__main__':
@@ -330,15 +328,28 @@ if __name__ == '__main__':
     model = "Random Forest"
 
     # finds the directory
-    folder_name = "/Novice Pointing/"
+    folder_name = "/Surgeon Tracing/"
     directory_name = "C:/Users/Abdul/OneDrive - Newcastle University/Stage 3/Obsidian Vault/EEE3095-7 Individual Project and Dissertation/Tremor ML/data/" + folder_name[1:]  # desktop
     # directory_name = "C:/Users/abdha/OneDrive - Newcastle University/Stage 3/Obsidian Vault/EEE3095-7 Individual Project and Dissertation/Tremor ML/data/" + folder_name[1:]  # laptop
     directory = os.fsencode(directory_name)
 
+    r2_scores = []
+    nrmses = []
+    tremor_r2_scores = []
+    tremor_nrmses = []
+    training_times = []
+    all_prediction_times = []
     # allows a specific file to be selected instead of an entire directory
-    override_file = "/real_tremor_data.csv"
+    override_file = ""
     if len(override_file) > 0:
-        main("./data" + override_file, model)
+        [accuracy, tremor_accuracy, max_training_time, avg_prediction_times]\
+            = main("./data" + override_file, model)
+        r2_scores.append(accuracy[0])
+        nrmses.append(accuracy[1])
+        tremor_r2_scores.append(tremor_accuracy[0])
+        tremor_nrmses.append(tremor_accuracy[1])
+        training_times.append(max_training_time)
+        all_prediction_times.append(avg_prediction_times)
     else:
         # puts all txt files' names in a list
         file_names = []
@@ -346,4 +357,26 @@ if __name__ == '__main__':
             file_names.append(os.fsdecode(file))
         # runs predictor algorithm for each dataset
         for file_name in file_names:
-            main("./data" + folder_name + file_name, model)
+            [accuracy, tremor_accuracy, max_training_time, avg_prediction_times]\
+                = main("./data" + folder_name + file_name, model)
+            r2_scores.append(accuracy[0])
+            nrmses.append(accuracy[1])
+            tremor_r2_scores.append(tremor_accuracy[0])
+            tremor_nrmses.append(tremor_accuracy[1])
+            training_times.append(max_training_time)
+            all_prediction_times.append(avg_prediction_times)
+
+    overall_r2_score_3D = np.mean(r2_scores, axis=0)
+    overall_nrmse_3D = np.mean(nrmses, axis=0)
+    overall_tremor_r2_score_3D = np.mean(tremor_r2_scores, axis=0)
+    overall_tremor_nrmse_3D = np.mean(tremor_nrmses, axis=0)
+    overall_training_time = np.mean(training_times, axis=0)
+    overall_avg_prediction_time_3D = np.mean(all_prediction_times, axis=0)
+    print(
+        "\nAverage R2 score of the model (%):", overall_r2_score_3D,
+        "\nAverage Normalised RMS error of the model:", overall_nrmse_3D,
+        "\nAverage R2 score of the tremor component (%):", overall_tremor_r2_score_3D,
+        "\nAverage Normalised RMS error of the tremor component:", overall_tremor_nrmse_3D,
+        "\nAverage time taken to train (s):", overall_training_time,
+        "\nAverage time taken to make a prediction (s)", overall_avg_prediction_time_3D
+    )
