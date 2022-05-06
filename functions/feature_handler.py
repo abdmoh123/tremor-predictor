@@ -139,14 +139,12 @@ def gen_features(TIME_PERIOD, motion, labels=None, horizon=None):
 
         # finds the optimum value for horizon
         # print("Optimising horizons...")
-        # horizon = []
         # # only required to run once
-        # for i in range(len(features)):
-        #     horizon.append(op.optimise_parameter(features[i], labels[i], "horizon"))
+        # horizon = op.optimise_parameter(features, labels, "horizon")
         # print("Done!")
 
         # used to save time (optimising is only required once)
-        horizon = 30
+        horizon = 5
 
         # calculates the average 3D motion
         average = normalise(calc_average(motion, horizon))  # last feature

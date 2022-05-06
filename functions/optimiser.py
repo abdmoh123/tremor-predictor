@@ -54,7 +54,7 @@ def optimise_parameter(features, labels, parameter):
 
     if parameter == "horizon":
         final_parameter = 1  # horizon value (starts at 1 to prevent division by zero)
-        max_parameter = 50  # limit for the horizon loop
+        max_parameter = len(features[0])  # limit for the horizon loop
         parameter_increment = 2
         temp_parameter = final_parameter  # temp value for iteration
 
@@ -65,7 +65,7 @@ def optimise_parameter(features, labels, parameter):
             temp_parameter += parameter_increment  # horizon values are incremented in values of 2
     elif parameter == "shift":
         final_parameter = 1  # shift value (when optimising past motion feature)
-        max_parameter = 10  # 10 features was optimal for Kabita's implementation
+        max_parameter = len(features[0])  # can't shift more than length of feature list
         parameter_increment = 1
         temp_parameter = final_parameter  # temp value for iteration
 

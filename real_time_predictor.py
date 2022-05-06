@@ -170,25 +170,25 @@ def predict_outputs(motion, regression, horizon, prediction_start, buffer_length
 
     # fills buffer in prediction mode (no label generation)
     [motion_buffer, reading_times] = fill_buffers(motion, buffer_length, TIME_PERIOD, True)
-    label_buffer = Buffer([], buffer_length)
+    filter_buffer = Buffer([], buffer_length)
 
     print("\nPredicting...")
 
     i = buffer_length  # skips all data already added to the buffer
-    index_step = 1  # no skipping in the beginning
+    index_step = 0  # no skipping in the beginning
     while i < len(motion):
         start_time = datetime.now()
 
         # loop allows missed data to be saved to buffer
         for j in range(index_step, 0, -1):
-            motion_buffer.add(motion[i - j + 1])  # +1 ensures that the current motion is added
-        # motion is filtered for denormalisation
-        label_buffer.content = motion_buffer.filter(TIME_PERIOD)
+            motion_buffer.add(motion[(i + 1) - j])  # +1 ensures that the current motion is added
+        # filtered motion is used for denormalisation
+        filter_buffer.content = motion_buffer.filter(TIME_PERIOD)
 
         # generates features out of the data in the buffer
         features = fh.gen_features(TIME_PERIOD, motion_buffer.normalise(), horizon=horizon)
         # gets midpoints and spreads to denormalise the predictions
-        [midpoint, sigma] = label_buffer.get_data_attributes()
+        [midpoint, sigma] = filter_buffer.get_data_attributes()
 
         # reformats the features for fitting the model (numpy array)
         features = np.vstack(features).T
@@ -196,7 +196,10 @@ def predict_outputs(motion, regression, horizon, prediction_start, buffer_length
         prediction = fh.denormalise(regression.predict(features), midpoint, sigma)
 
         # selects and saves only the new predictions to an external array for evaluation
-        new_predictions = prediction[len(prediction) - index_step:len(prediction)]
+        if len(prediction) > index_step:
+            new_predictions = prediction[len(prediction) - index_step:len(prediction)]
+        else:
+            new_predictions = prediction
         for value in new_predictions:
             total_predictions.append(value)
 

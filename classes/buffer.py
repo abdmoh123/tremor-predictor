@@ -4,7 +4,7 @@ import functions.data_handler as dh
 
 class Buffer:
     def __init__(self, content, MAX_LENGTH):
-        self._content = content
+        self._content = list(content)
         self._length = MAX_LENGTH
 
     # adds data to the buffer while remaining within maximum length (like a real buffer)
@@ -35,7 +35,7 @@ class Buffer:
 
     @content.setter
     def content(self, data):
-        self._content = data
+        self._content = list(data)
         self.update()
 
     @property
