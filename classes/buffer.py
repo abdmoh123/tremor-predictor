@@ -18,8 +18,8 @@ class Buffer:
             self._content = self._content[len(self._content) - self._length:]
 
     # returns a filtered version of its contents
-    def filter(self, TIME_PERIOD):
-        return dh.filter_data(self._content, TIME_PERIOD)
+    def filter(self, TIME_PERIOD, zero_phase=True):
+        return dh.filter_data(self._content, TIME_PERIOD, zero_phase)
 
     # returns a normalised version of its contents
     def normalise(self):

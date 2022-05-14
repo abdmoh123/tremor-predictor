@@ -4,6 +4,7 @@ from scipy import interpolate
 from datetime import datetime
 import concurrent.futures
 import os
+import matplotlib.pyplot as plt
 
 
 # functions that apply to both simulated and real tremor
@@ -11,7 +12,7 @@ import functions.feature_handler as fh
 import functions.data_handler as dh
 import functions.evaluator as eva
 import functions.optimiser as op
-import functions.plotter as plt
+import functions.plotter as pltr
 # buffer class to simulate a real data buffer
 from classes.buffer import Buffer
 
@@ -47,7 +48,7 @@ def main(FILE_NAME, model_type):
             reading_times.append(result[2])
             filtering_times.append(result[3])
 
-        """ Training and tuning phase """
+        """ Tuning phase """
         # returns [regression, horizon, training_time]
         training_results = exe.map(
             train_model,
@@ -182,7 +183,7 @@ def predict_outputs(motion, regression, horizon, prediction_start, buffer_length
         # loop allows missed data to be saved to buffer
         for j in range(index_step, 0, -1):
             motion_buffer.add(motion[(i + 1) - j])  # +1 ensures that the current motion is added
-        # filtered motion is used for denormalisation
+        # filtered motion is used for denormalisation (non-zero phase)
         filter_buffer.content = motion_buffer.filter(TIME_PERIOD)
 
         # generates features out of the data in the buffer
@@ -320,8 +321,8 @@ def evaluate_model(times, data, start_index, total_predictions, TIME_PERIOD):
     tremor_axes_labels = ["Actual tremor", "Predicted tremor", "Tremor error"]
 
     t = np.array(data[0], dtype='f') * TIME_PERIOD  # samples are measured at a rate of 250Hz
-    plt.plot_model(t[start_index:], model_data, model_axes_labels)  # plots SVR model
-    plt.plot_model(t[start_index:], tremor_data, tremor_axes_labels)  # plots the tremor components
+    pltr.plot_model(t[start_index:], model_data, model_axes_labels)  # plots SVR model
+    pltr.plot_model(t[start_index:], tremor_data, tremor_axes_labels)  # plots the tremor components
 
     return accuracy, tremor_accuracy, np.max(training_time), avg_predicting_times
 
@@ -331,12 +332,13 @@ if __name__ == '__main__':
     model = "Random Forest"
 
     # finds the directory
-    folder_name = "/Surgeon Tracing/"
+    folder_name = "/Surgeon Pointing/"
     directory_name = "C:/Users/Abdul/OneDrive - Newcastle University/Stage 3/Obsidian Vault/EEE3095-7 Individual Project and Dissertation/Tremor ML/data/" + folder_name[1:]  # desktop
     # directory_name = "C:/Users/abdha/OneDrive - Newcastle University/Stage 3/Obsidian Vault/EEE3095-7 Individual Project and Dissertation/Tremor ML/data/" + folder_name[1:]  # laptop
     directory = os.fsencode(directory_name)
 
     # allows a specific file to be selected instead of an entire directory
+    # override_file = "/real_tremor_data.csv"
     override_file = ""
     if len(override_file) > 0:
         main("./data" + override_file, model)
@@ -378,3 +380,29 @@ if __name__ == '__main__':
             "\nAverage time taken to train (s):", overall_training_time,
             "\nAverage time taken to make a prediction (s)", overall_avg_prediction_time_3D
         )
+        bar_prediction_times = [[], [], []]
+        bar_r2 = [[], [], []]
+        bar_tremor_r2 = [[], [], []]
+        for i in range(len(all_prediction_times)):
+            for j in range(len(all_prediction_times[i])):
+                bar_prediction_times[j] = all_prediction_times[i][j]
+                bar_r2[j] = r2_scores[i][j]
+                bar_tremor_r2[j] = tremor_r2_scores[i][j]
+
+        index = np.arange(len(r2_scores))
+        fig, axes = plt.subplots(4)
+        dimension_label = ["X", "Y", "Z"]
+
+        axes[0].bar(index, training_times, label="Training time")
+        for i in range(len(bar_prediction_times)):
+            axes[1].bar(index, bar_prediction_times[i], label="Prediction time " + dimension_label[i])
+            axes[2].bar(index, bar_r2[i], label="Overall accuracy " + dimension_label[i])
+            axes[3].bar(index, bar_tremor_r2[i], label="Tremor accuracy " + dimension_label[i])
+        axes[0].set_ylabel("Time (s)")
+        axes[1].set_ylabel("Time (s)")
+        axes[2].set_ylabel("Score (%)")
+        axes[3].set_ylabel("Score (%)")
+        for i in range(4):
+            axes[i].legend()
+
+        plt.show()

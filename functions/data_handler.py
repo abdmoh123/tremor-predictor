@@ -35,11 +35,19 @@ def read_data(file_name, l_bound, u_bound):
 
 
 # filters the input data to estimate the intended movement
-def filter_data(data, TIME_PERIOD):
+def filter_data(data, TIME_PERIOD, zero_phase=True):
     nyquist = 1 / (2 * TIME_PERIOD)
     cut_off = 5 / nyquist
 
-    # zero phase filter is used to generate the labels (slow but very accurate)
-    [b, a] = signal.butter(2, cut_off, btype='low')
-    filtered_data = signal.filtfilt(b, a, data)
+    # butterworth based on IIR filter is used
+    [b, a] = signal.butter(2, cut_off, btype='lowpass')
+    # zero phase filter is used to generate the labels (slower but no distortion)
+    if zero_phase:
+        filtered_data = signal.filtfilt(b, a, data)
+    # has distortion in the beginning and end of the data but is usable in real-time
+    elif not zero_phase:
+        filtered_data = signal.lfilter(b, a, data)
+    else:
+        print("Error: Invalid boolean input!")
+        exit()
     return np.ndarray.tolist(filtered_data)  # converts np array to list

@@ -18,7 +18,7 @@ def calc_average(features, horizon):
     for i in range(len(features)):
         # ensures the average is still calculated correctly at the beginning of the feature list
         if (2 * i) < (horizon - 1):
-            temp_array = features[0:(2 * i + 1)]
+            temp_array = features[:(2 * i + 1)]
         else:
             # the correct values are selected (i in the middle) even if the horizon is even
             if horizon % 2 == 0:
