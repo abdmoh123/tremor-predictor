@@ -4,7 +4,6 @@ from scipy import interpolate
 from datetime import datetime
 import concurrent.futures
 import os
-import matplotlib.pyplot as plt
 
 
 # functions that apply to both simulated and real tremor
@@ -19,7 +18,7 @@ from classes.buffer import Buffer
 np.set_printoptions(threshold=50)  # shortens long arrays in the console window
 
 
-def main(FILE_NAME, model_type):
+def start_predictor(FILE_NAME, model_type):
     """ Constants """
     TIME_PERIOD = 1 / 250  # a sample is recorded every 0.004 seconds
     N_SAMPLES = 500  # more samples = more accuracy but slower speed
@@ -328,81 +327,8 @@ def evaluate_model(times, data, start_index, total_predictions, TIME_PERIOD):
 
 
 if __name__ == '__main__':
+    # quick switching between ML algorithms/models
     # model = "SVM"
     model = "Random Forest"
 
-    # finds the directory
-    folder_name = "/Surgeon Pointing/"
-    directory_name = "C:/Users/Abdul/OneDrive - Newcastle University/Stage 3/Obsidian Vault/EEE3095-7 Individual Project and Dissertation/Tremor ML/data/" + folder_name[1:]  # desktop
-    # directory_name = "C:/Users/abdha/OneDrive - Newcastle University/Stage 3/Obsidian Vault/EEE3095-7 Individual Project and Dissertation/Tremor ML/data/" + folder_name[1:]  # laptop
-    directory = os.fsencode(directory_name)
-
-    # allows a specific file to be selected instead of an entire directory
-    # override_file = "/real_tremor_data.csv"
-    override_file = ""
-    if len(override_file) > 0:
-        main("./data" + override_file, model)
-    else:
-        # puts all txt files' names in a list
-        file_names = []
-        for file in os.listdir(directory):
-            file_names.append(os.fsdecode(file))
-
-        r2_scores = []
-        nrmses = []
-        tremor_r2_scores = []
-        tremor_nrmses = []
-        training_times = []
-        all_prediction_times = []
-        # runs predictor algorithm for each dataset
-        for file_name in file_names:
-            [accuracy, tremor_accuracy, max_training_time, avg_prediction_times]\
-                = main("./data" + folder_name + file_name, model)
-            r2_scores.append(accuracy[0])
-            nrmses.append(accuracy[1])
-            tremor_r2_scores.append(tremor_accuracy[0])
-            tremor_nrmses.append(tremor_accuracy[1])
-            training_times.append(max_training_time)
-            all_prediction_times.append(avg_prediction_times)
-
-        # finds and outputs the average metrics for all datasets
-        overall_r2_score_3D = np.mean(r2_scores, axis=0)
-        overall_nrmse_3D = np.mean(nrmses, axis=0)
-        overall_tremor_r2_score_3D = np.mean(tremor_r2_scores, axis=0)
-        overall_tremor_nrmse_3D = np.mean(tremor_nrmses, axis=0)
-        overall_training_time = np.mean(training_times, axis=0)
-        overall_avg_prediction_time_3D = np.mean(all_prediction_times, axis=0)
-        print(
-            "\nAverage R2 score of the model (%):", overall_r2_score_3D,
-            "\nAverage Normalised RMS error of the model:", overall_nrmse_3D,
-            "\nAverage R2 score of the tremor component (%):", overall_tremor_r2_score_3D,
-            "\nAverage Normalised RMS error of the tremor component:", overall_tremor_nrmse_3D,
-            "\nAverage time taken to train (s):", overall_training_time,
-            "\nAverage time taken to make a prediction (s)", overall_avg_prediction_time_3D
-        )
-        bar_prediction_times = [[], [], []]
-        bar_r2 = [[], [], []]
-        bar_tremor_r2 = [[], [], []]
-        for i in range(len(all_prediction_times)):
-            for j in range(len(all_prediction_times[i])):
-                bar_prediction_times[j] = all_prediction_times[i][j]
-                bar_r2[j] = r2_scores[i][j]
-                bar_tremor_r2[j] = tremor_r2_scores[i][j]
-
-        index = np.arange(len(r2_scores))
-        fig, axes = plt.subplots(4)
-        dimension_label = ["X", "Y", "Z"]
-
-        axes[0].bar(index, training_times, label="Training time")
-        for i in range(len(bar_prediction_times)):
-            axes[1].bar(index, bar_prediction_times[i], label="Prediction time " + dimension_label[i])
-            axes[2].bar(index, bar_r2[i], label="Overall accuracy " + dimension_label[i])
-            axes[3].bar(index, bar_tremor_r2[i], label="Tremor accuracy " + dimension_label[i])
-        axes[0].set_ylabel("Time (s)")
-        axes[1].set_ylabel("Time (s)")
-        axes[2].set_ylabel("Score (%)")
-        axes[3].set_ylabel("Score (%)")
-        for i in range(4):
-            axes[i].legend()
-
-        plt.show()
+    start_predictor("./data/real_tremor_data.csv", model)
