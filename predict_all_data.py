@@ -1,9 +1,6 @@
 # libraries imported
 import os
-import numpy as np
-import matplotlib.pyplot as plt
 from predict_folder import predict_dir
-from real_time_predictor import start_predictor
 
 
 def predict_dirs(model_type):
