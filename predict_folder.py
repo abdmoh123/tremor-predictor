@@ -23,14 +23,26 @@ def predict_dir(path, model_type):
     # runs predictor algorithm for each dataset
     for file_name in file_names:
         [accuracy, tremor_accuracy, max_training_time, avg_prediction_time] \
-            = start_predictor(directory_name + "/" + file_name, model_type)
+            = start_predictor(path + "/" + file_name, model_type)
         r2.append(accuracy[0])
         tremor_r2.append(tremor_accuracy[0])
         nrmse.append(accuracy[1])
         tremor_nrmse.append(tremor_accuracy[1])
         max_training_times.append(max_training_time)
         avg_prediction_times.append(avg_prediction_time)
-    return r2, tremor_r2, nrmse, tremor_nrmse, max_training_times, avg_prediction_times
+    overall_r2_score = np.mean(r2, axis=0)
+    overall_tremor_r2_score = np.mean(tremor_r2, axis=0)
+    overall_nrmse = np.mean(nrmse, axis=0)
+    overall_tremor_nrmse = np.mean(tremor_nrmse, axis=0)
+    overall_training_time = np.mean(max_training_times, axis=0)
+    overall_avg_prediction_time = np.mean(avg_prediction_times, axis=0)
+    return \
+        overall_r2_score,\
+        overall_tremor_r2_score,\
+        overall_nrmse,\
+        overall_tremor_nrmse,\
+        overall_training_time,\
+        overall_avg_prediction_time
 
 
 if __name__ == '__main__':
@@ -44,28 +56,22 @@ if __name__ == '__main__':
     [r2_scores, tremor_r2_scores, nrmses, tremor_nrmses, training_times, prediction_times] \
         = predict_dir(directory_name, model)
 
-    # finds and prints the average metrics for all datasets
-    overall_r2_score_3D = np.mean(r2_scores, axis=0)
-    overall_nrmse_3D = np.mean(nrmses, axis=0)
-    overall_tremor_r2_score_3D = np.mean(tremor_r2_scores, axis=0)
-    overall_tremor_nrmse_3D = np.mean(tremor_nrmses, axis=0)
-    overall_training_time = np.mean(training_times, axis=0)
-    overall_avg_prediction_time_3D = np.mean(prediction_times, axis=0)
+    # prints the average metrics for all datasets
     print(
-        "\nAverage R2 score of the model (%):", overall_r2_score_3D,
-        "\nAverage Normalised RMS error of the model:", overall_nrmse_3D,
-        "\nAverage R2 score of the tremor component (%):", overall_tremor_r2_score_3D,
-        "\nAverage Normalised RMS error of the tremor component:", overall_tremor_nrmse_3D,
-        "\nAverage time taken to train (s):", overall_training_time,
-        "\nAverage time taken to make a prediction (s)", overall_avg_prediction_time_3D
+        "\nAverage R2 score of the model:", str(r2_scores) + "%",
+        "\nAverage R2 score of the tremor component:", str(tremor_r2_scores) + "%",
+        "\nAverage Normalised RMS error of the model:", nrmses,
+        "\nAverage Normalised RMS error of the tremor component:", tremor_nrmses,
+        "\nAverage time taken to train:", str(training_times) + "s",
+        "\nAverage time taken to make a prediction:", str(prediction_times) + "s"
     )
 
     # data for plotting bar chart
     labels = ["Overall R2 score", "Tremor component R2 score"]
-    x_axis_r2 = [overall_r2_score_3D[0], overall_tremor_r2_score_3D[0]]
-    y_axis_r2 = [overall_r2_score_3D[1], overall_tremor_r2_score_3D[1]]
-    z_axis_r2 = [overall_r2_score_3D[2], overall_tremor_r2_score_3D[2]]
-    average_r2 = [np.mean(overall_r2_score_3D), np.mean(overall_tremor_r2_score_3D)]
+    x_axis_r2 = [r2_scores[0], tremor_r2_scores[0]]
+    y_axis_r2 = [r2_scores[1], tremor_r2_scores[1]]
+    z_axis_r2 = [r2_scores[2], tremor_r2_scores[2]]
+    average_r2 = [np.mean(r2_scores), np.mean(tremor_r2_scores)]
 
     fig, axis = plt.subplots()
     # bar chart properties

@@ -278,7 +278,7 @@ def evaluate_model(times, data, start_index, total_predictions, TIME_PERIOD):
         accuracy[1].append(temp_rmse)  # [X, Y, Z]
     # prints the accuracies of the overall voluntary motion (after completion)
     print(
-        "\nOverall accuracy",
+        "\nAccuracy",
         "\nX [R2, NRMSE]: [" + str(accuracy[0][0]) + "%" + ", " + str(accuracy[1][0]) + "]",
         "\nY [R2, NRMSE]: [" + str(accuracy[0][1]) + "%" + ", " + str(accuracy[1][1]) + "]",
         "\nZ [R2, NRMSE]: [" + str(accuracy[0][2]) + "%" + ", " + str(accuracy[1][2]) + "]"
@@ -297,7 +297,7 @@ def evaluate_model(times, data, start_index, total_predictions, TIME_PERIOD):
     tremor_error = np.subtract(actual_tremor, predicted_tremor)
     # prints the accuracies of the overall tremor component (after completion)
     print(
-        "\nOverall tremor accuracy",
+        "\nTremor accuracy",
         "\nX [R2, NRMSE]: [" + str(tremor_accuracy[0][0]) + "%" + ", " + str(tremor_accuracy[1][0]) + "]",
         "\nY [R2, NRMSE]: [" + str(tremor_accuracy[0][1]) + "%" + ", " + str(tremor_accuracy[1][1]) + "]",
         "\nZ [R2, NRMSE]: [" + str(tremor_accuracy[0][2]) + "%" + ", " + str(tremor_accuracy[1][2]) + "]"
