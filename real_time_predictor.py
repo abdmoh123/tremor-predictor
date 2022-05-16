@@ -3,7 +3,6 @@ import numpy as np
 from scipy import interpolate
 from datetime import datetime
 import concurrent.futures
-import os
 
 
 # functions that apply to both simulated and real tremor
@@ -275,8 +274,8 @@ def evaluate_model(times, data, start_index, total_predictions, TIME_PERIOD):
     for i in range(len(motion)):
         filtered_motion.append(dh.filter_data(motion[i], TIME_PERIOD))
         [temp_R2, temp_rmse] = eva.calc_accuracy(filtered_motion[i], total_predictions[i])
-        accuracy[0].append(temp_R2)
-        accuracy[1].append(temp_rmse)
+        accuracy[0].append(temp_R2)  # [X, Y, Z]
+        accuracy[1].append(temp_rmse)  # [X, Y, Z]
     # prints the accuracies of the overall voluntary motion (after completion)
     print(
         "\nOverall accuracy",
