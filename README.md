@@ -16,7 +16,7 @@ Data provided by ...
 - Scipy
 - Matplotlib
 
-**How to use**
+## How to setup
 
 1. Download and install python 3.9 or later
     - Make sure add to PATH is ticked
