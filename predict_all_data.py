@@ -3,7 +3,9 @@ import os
 import pathlib
 import numpy as np
 import matplotlib.pyplot as plt
+from matplotlib.font_manager import FontProperties
 
+# uses predict folder code to run predictor on entire folders
 from predict_folder import predict_dir
 
 
@@ -58,71 +60,96 @@ def predict_dirs(model_type):
     labels = ["Overall R2", "Tremor R2"]
 
     if len(folder_names) <= 2:
-        fig, axes = plt.subplots(1, len(folder_names))
+        fig, axes = plt.subplots(1, len(folder_names), figsize=(10, 10))
     else:
-        fig, axes = plt.subplots(round(len(folder_names) / 2), round(len(folder_names) / 2))
+        fig, axes = plt.subplots(round(len(folder_names) / 2), round(len(folder_names) / 2), figsize=(10, 10))
     # bar chart properties
-    bar_width = 0.1
+    bar_width = 0.2
     x_axis = np.arange(len(labels))
 
-    r = c = 0  # row and column indices of subplot
+    x_axis_r2 = []
+    y_axis_r2 = []
+    z_axis_r2 = []
+    average_r2 = []
     # run for every folder
     for i in range(len(folder_names)):
-        x_axis_r2 = [all_r2[i][0], all_tremor_r2[i][0]]
-        y_axis_r2 = [all_r2[i][1], all_tremor_r2[i][1]]
-        z_axis_r2 = [all_r2[i][2], all_tremor_r2[i][2]]
-        average_r2 = [np.mean(all_r2[i]), np.mean(all_tremor_r2[i])]
+        x_axis_r2.append([round(all_r2[i][0]), round(all_tremor_r2[i][0])])
+        y_axis_r2.append([round(all_r2[i][1]), round(all_tremor_r2[i][1])])
+        z_axis_r2.append([round(all_r2[i][2]), round(all_tremor_r2[i][2])])
+        average_r2.append([round(np.mean(all_r2[i])), round(np.mean(all_tremor_r2[i]))])
 
-        if len(folder_names) <= 2:
+    if len(folder_names) <= 2:
+        for i in range(len(folder_names)):
             # bars for each result
-            axes[i].bar(x_axis - (3 * bar_width / 2), x_axis_r2, width=bar_width, label="X")
-            axes[i].bar(x_axis - (bar_width / 2), y_axis_r2, width=bar_width, label="Y")
-            axes[i].bar(x_axis + (bar_width / 2), z_axis_r2, width=bar_width, label="Z")
-            axes[i].bar(x_axis + (3 * bar_width / 2), average_r2, width=bar_width, label="Average")
+            bar1 = axes[i].bar(x_axis - (3 * bar_width / 2), x_axis_r2[i], width=bar_width, label="X")
+            bar2 = axes[i].bar(x_axis - (bar_width / 2), y_axis_r2[i], width=bar_width, label="Y")
+            bar3 = axes[i].bar(x_axis + (bar_width / 2), z_axis_r2[i], width=bar_width, label="Z")
+            bar4 = axes[i].bar(x_axis + (3 * bar_width / 2), average_r2[i], width=bar_width, label="Avg")
+            # displays bar value above the bar
+            axes[i].bar_label(bar1)
+            axes[i].bar_label(bar2)
+            axes[i].bar_label(bar3)
+            axes[i].bar_label(bar4)
 
             # axis labels + title
+            axes[i].set_title(folder_names[i], fontweight="bold")
             axes[i].set_xlabel("R2 score metrics")
             axes[i].set_ylabel("Accuracy (%)")
             # setting ticks
             axes[i].set_xticks(x_axis)
             axes[i].set_xticklabels(labels)
-            # legend
-            axes[i].legend(title="3D axis")
             # tick parameters
             axes[i].tick_params(axis="x", which="both")
             axes[i].tick_params(axis="y", which="both")
-        else:
+
+        # for figure legend
+        lines, labels = axes[-1].get_legend_handles_labels()
+    else:
+        r = c = 0  # row and column indices of subplot
+        for i in range(len(folder_names)):
             # allows subplots to be displayed in a grid-like shape
             if r >= len(folder_names) / 2:
-                r = 0
-                c += 1
+                r = 0  # goes back to the first row
+                c += 1  # moves on to the next column
 
             # bars for each result
-            axes[r, c].bar(x_axis - (3 * bar_width / 2), x_axis_r2, width=bar_width, label="X")
-            axes[r, c].bar(x_axis - (bar_width / 2), y_axis_r2, width=bar_width, label="Y")
-            axes[r, c].bar(x_axis + (bar_width / 2), z_axis_r2, width=bar_width, label="Z")
-            axes[r, c].bar(x_axis + (3 * bar_width / 2), average_r2, width=bar_width, label="Average")
+            bar1 = axes[r, c].bar(x_axis - (3 * bar_width / 2), x_axis_r2[i], width=bar_width, label="X")
+            bar2 = axes[r, c].bar(x_axis - (bar_width / 2), y_axis_r2[i], width=bar_width, label="Y")
+            bar3 = axes[r, c].bar(x_axis + (bar_width / 2), z_axis_r2[i], width=bar_width, label="Z")
+            bar4 = axes[r, c].bar(x_axis + (3 * bar_width / 2), average_r2[i], width=bar_width, label="Avg")
+            # displays bar value above the bar
+            axes[r, c].bar_label(bar1)
+            axes[r, c].bar_label(bar2)
+            axes[r, c].bar_label(bar3)
+            axes[r, c].bar_label(bar4)
 
             # axis labels + title
-            axes[r, c].set_title(folder_names[i])
+            axes[r, c].set_title(folder_names[i], fontweight="bold")
             axes[r, c].set_xlabel("R2 score metrics")
             axes[r, c].set_ylabel("Accuracy (%)")
             # setting ticks
             axes[r, c].set_xticks(x_axis)
             axes[r, c].set_xticklabels(labels)
-            # legend
-            axes[r, c].legend(title="3D axis")
             # tick parameters
             axes[r, c].tick_params(axis="x", which="both")
             axes[r, c].tick_params(axis="y", which="both")
 
             r += 1  # moves on to the next row in the subplot
-    fig.suptitle(model + " results based on multiple datasets")
+        # for figure legend
+        lines, labels = axes[0, 0].get_legend_handles_labels()
+    # figure legend
+    font_prop = FontProperties()
+    font_prop.set_size("small")  # font size of the legend content
+    legend = fig.legend(lines, labels, title="3D axis", prop=font_prop)
+    plt.setp(legend.get_title(), fontsize="medium")  # font size of the legend title
+    # figure title
+    fig.suptitle((model + " results based on multiple datasets"), fontweight="bold", fontsize="x-large")
+
     plt.show()
 
 
 if __name__ == '__main__':
-    model = "SVM"
-    # model = "Random Forest"
+    # model = "SVM"
+    model = "Random Forest"
 
     predict_dirs(model)

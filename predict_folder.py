@@ -68,31 +68,37 @@ if __name__ == '__main__':
 
     # data for plotting bar chart
     labels = ["Overall R2 score", "Tremor component R2 score"]
-    x_axis_r2 = [r2_scores[0], tremor_r2_scores[0]]
-    y_axis_r2 = [r2_scores[1], tremor_r2_scores[1]]
-    z_axis_r2 = [r2_scores[2], tremor_r2_scores[2]]
-    average_r2 = [np.mean(r2_scores), np.mean(tremor_r2_scores)]
+    # rounded to better display as bar label
+    x_axis_r2 = [round(r2_scores[0]), round(tremor_r2_scores[0])]
+    y_axis_r2 = [round(r2_scores[1]), round(tremor_r2_scores[1])]
+    z_axis_r2 = [round(r2_scores[2]), round(tremor_r2_scores[2])]
+    average_r2 = [round(np.mean(r2_scores)), round(np.mean(tremor_r2_scores))]
 
     fig, axis = plt.subplots()
     # bar chart properties
-    bar_width = 0.1
+    bar_width = 0.2
     x_axis = np.arange(len(labels))
 
     # bars for each result
     bar1 = axis.bar(x_axis - (3 * bar_width / 2), x_axis_r2, width=bar_width, label="X")
     bar2 = axis.bar(x_axis - (bar_width / 2), y_axis_r2, width=bar_width, label="Y")
     bar3 = axis.bar(x_axis + (bar_width / 2), z_axis_r2, width=bar_width, label="Z")
-    bar4 = axis.bar(x_axis + (3 * bar_width / 2), average_r2, width=bar_width, label="Average")
+    bar4 = axis.bar(x_axis + (3 * bar_width / 2), average_r2, width=bar_width, label="Avg")
+    # displays bar value above the bar
+    axis.bar_label(bar1)
+    axis.bar_label(bar2)
+    axis.bar_label(bar3)
+    axis.bar_label(bar4)
 
     # axis labels + title
     axis.set_xlabel("R2 score metrics")
     axis.set_ylabel("Accuracy (%)")
-    axis.set_title(model + " results based on the " + folder_name + " datasets")
+    axis.set_title(model + " results based on " + folder_name + " datasets", fontweight="bold")
     # setting ticks
     axis.set_xticks(x_axis)
     axis.set_xticklabels(labels)
     # legend
-    axis.legend(title="3D axis")
+    axis.legend(title="3D axis", loc=9)
     # tick parameters
     axis.tick_params(axis="x", which="both")
     axis.tick_params(axis="y", which="both")
