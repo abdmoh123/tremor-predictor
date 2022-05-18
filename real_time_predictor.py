@@ -1,4 +1,5 @@
 # libraries imported
+import math
 import numpy as np
 from scipy import interpolate
 from datetime import datetime
@@ -17,10 +18,11 @@ from classes.buffer import Buffer
 np.set_printoptions(threshold=50)  # shortens long arrays in the console window
 
 
-def start_predictor(FILE_NAME, model_type):
+def start_predictor(FILE_NAME, MODEL_TYPE):
     """ Constants """
     TIME_PERIOD = 1 / 250  # a sample is recorded every 0.004 seconds
-    N_SAMPLES = 500  # more samples = more accuracy but slower speed
+    N_SAMPLES = 500  # more samples = more accuracy but slower speed (training buffer length)
+    BUFFER_LENGTH = 10  # prediction buffer length
 
     # reads data into memory and filters it
     data = dh.read_data(FILE_NAME, 200, 3000)  # real tremor data (t, x, y, z, grip force)
@@ -52,8 +54,7 @@ def start_predictor(FILE_NAME, model_type):
             train_model,
             motion_buffer,
             label_buffer,
-            [model_type, model_type, model_type],
-            [TIME_PERIOD, TIME_PERIOD, TIME_PERIOD]
+            [MODEL_TYPE, MODEL_TYPE, MODEL_TYPE]
         )
         # binds results to variables
         regression = []
@@ -72,7 +73,6 @@ def start_predictor(FILE_NAME, model_type):
         # skips all the samples being 'streamed' while the model was trained
         prediction_start = N_SAMPLES + round(np.max(training_times) / TIME_PERIOD)  # index must be an integer
         print("Predictions start at index:", prediction_start)
-        BUFFER_LENGTH = 10
         # returns [total_predictions, predicting_times, wait_time]
         prediction_results = exe.map(
             predict_outputs,
@@ -138,11 +138,11 @@ def fill_buffers(data, N_SAMPLES, TIME_PERIOD, prediction=False):
 
 
 # trains and tunes a regression model (SVM)
-def train_model(motion_buffer, label_buffer, model_type, TIME_PERIOD):
+def train_model(motion_buffer, label_buffer, model_type):
     start_time = datetime.now()
 
     # calculates the features in a separate function
-    [features, horizon] = fh.gen_features(TIME_PERIOD, motion_buffer.normalise(), label_buffer.normalise())
+    [features, horizon] = fh.gen_features(motion_buffer.normalise(), label_buffer.normalise())
 
     # SVM with rbf kernel
     print("\nTuning...")
@@ -169,7 +169,8 @@ def predict_outputs(motion, regression, horizon, prediction_start, buffer_length
 
     # fills buffer in prediction mode (no label generation)
     [motion_buffer, reading_times] = fill_buffers(motion, buffer_length, TIME_PERIOD, True)
-    filter_buffer = Buffer([], buffer_length)
+    # buffer for a linear butterworth (not zero-phase) IIR filter is prepared
+    filter_buffer = Buffer(motion_buffer.content, 3000)
 
     print("\nPredicting...")
 
@@ -180,19 +181,17 @@ def predict_outputs(motion, regression, horizon, prediction_start, buffer_length
 
         # loop allows missed data to be saved to buffer
         for j in range(index_step, 0, -1):
-            motion_buffer.add(motion[(i + 1) - j])  # +1 ensures that the current motion is added
-        # filtered motion is used for denormalisation (non-zero phase)
-        filter_buffer.content = motion_buffer.filter(TIME_PERIOD)
+            # +1 ensures that the current motion is added
+            motion_buffer.add(motion[i - j + 1])
+            filter_buffer.add(motion[i - j + 1])
 
         # generates features out of the data in the buffer
-        features = fh.gen_features(TIME_PERIOD, motion_buffer.normalise(), horizon=horizon)
-        # gets midpoints and spreads to denormalise the predictions
-        [midpoint, sigma] = filter_buffer.get_data_attributes()
-
-        # reformats the features for fitting the model (numpy array)
-        features = np.vstack(features).T
+        features = np.vstack(fh.gen_features(motion_buffer.normalise(), horizon=horizon)).T
         # predicts the voluntary motion and denormalises it to the correct scale
-        prediction = fh.denormalise(regression.predict(features), midpoint, sigma)
+        prediction = fh.match_scale(
+            filter_buffer.filter(TIME_PERIOD)[len(filter_buffer.content) - buffer_length:len(filter_buffer.content)],
+            regression.predict(features)
+        )
 
         # selects and saves only the new predictions to an external array for evaluation
         if len(prediction) > index_step:
@@ -208,7 +207,7 @@ def predict_outputs(motion, regression, horizon, prediction_start, buffer_length
         predicting_times.append(predict_time)
 
         # skips all the samples being 'streamed' while the program performed predictions
-        index_step = round(predict_time / TIME_PERIOD) + 1  # must be an integer
+        index_step = math.floor(predict_time / TIME_PERIOD) + 1  # must be an integer
         # prints when too much data was skipped - some data will not be predicted at all
         if index_step > buffer_length:
             print(index_step, "data skipped is too high")
@@ -218,7 +217,7 @@ def predict_outputs(motion, regression, horizon, prediction_start, buffer_length
             index_step = 1
         i += index_step
 
-    print("Finished", len(total_predictions), "/", len(motion), "predictions!")
+    print("Finished", len(total_predictions) + buffer_length, "/", len(motion), "predictions!")
     return total_predictions, predicting_times, sum(reading_times)
 
 
@@ -237,7 +236,7 @@ def evaluate_model(times, data, start_index, total_predictions, TIME_PERIOD):
     avg_predicting_times = [np.mean(predicting_times[0]), np.mean(predicting_times[1]), np.mean(predicting_times[2])]
     max_predicting_times = [np.max(predicting_times[0]), np.max(predicting_times[1]), np.max(predicting_times[2])]
     min_predicting_times = [np.min(predicting_times[0]), np.min(predicting_times[1]), np.min(predicting_times[2])]
-    max_index_skipped = np.round(np.divide(max_predicting_times, TIME_PERIOD))
+    max_index_skipped = np.floor(np.divide(max_predicting_times, TIME_PERIOD)) + 1
     total_prediction_time = [sum(predicting_times[0]), sum(predicting_times[1]), sum(predicting_times[2])]
     print(
         "\nTotal time filling buffer:", np.max(total_reading_time),
@@ -255,18 +254,21 @@ def evaluate_model(times, data, start_index, total_predictions, TIME_PERIOD):
     # truncates the data to the same length as the predictions
     motion = [data[1][start_index:], data[2][start_index:], data[3][start_index:]]
     # percentage of data not predicted
-    miss_rate = [
+    data_loss = [
         100 * (1 - (len(total_predictions[0]) / len(motion[0]))),  # X
         100 * (1 - (len(total_predictions[1]) / len(motion[1]))),  # Y
         100 * (1 - (len(total_predictions[2]) / len(motion[2])))  # Z
     ]
-    print("\nData loss [X, Y, Z]:", miss_rate)
-    # interpolates the motion data to be the same length as the results
+    print("\nData loss [X, Y, Z]:", data_loss)
+    # interpolates the motion data to be the same length as the results and shortens the graph (better view)
     for i in range(len(total_predictions)):
         # fills the gaps in the predictions list caused by skipping samples during prediction
         interp_pred = interpolate.interp1d(np.arange(len(total_predictions[i])), total_predictions[i])
         stretched_pred = interp_pred(np.linspace(0, len(total_predictions[i]) - 1, len(motion[i])))
         total_predictions[i] = stretched_pred
+        # selects the last 20% of data to show more detail in graph and to remove bad data at the beginning
+        total_predictions[i] = total_predictions[i][round(0.8 * len(total_predictions[i])):len(total_predictions[i])]
+        motion[i] = motion[i][round(0.8 * len(motion[i])):len(motion[i])]
 
     filtered_motion = []
     accuracy = [[], []]  # [R2, NRMSE]
@@ -319,15 +321,15 @@ def evaluate_model(times, data, start_index, total_predictions, TIME_PERIOD):
     tremor_axes_labels = ["Actual tremor", "Predicted tremor", "Tremor error"]
 
     t = np.array(data[0], dtype='f') * TIME_PERIOD  # samples are measured at a rate of 250Hz
-    pltr.plot_model(t[start_index:], model_data, model_axes_labels)  # plots SVR model
-    pltr.plot_model(t[start_index:], tremor_data, tremor_axes_labels)  # plots the tremor components
+    pltr.plot_model(t[len(t) - len(motion[0]):], model_data, model_axes_labels)  # plots SVR model
+    pltr.plot_model(t[len(t) - len(motion[0]):], tremor_data, tremor_axes_labels)  # plots the tremor components
 
     return accuracy, tremor_accuracy, np.max(training_time), avg_predicting_times
 
 
 if __name__ == '__main__':
     # quick switching between ML algorithms/models
-    # model = "SVM"
-    model = "Random Forest"
+    model = "SVM"
+    # model = "Random Forest"
 
     start_predictor("./data/real_tremor_data.csv", model)

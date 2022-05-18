@@ -4,30 +4,49 @@ import functions.optimiser as op
 
 
 # finds the change in tremor output
-def calc_delta(feature, TIME_PERIOD, index_difference=1):
+def calc_delta(feature, index_difference=1):
     past_feature = shift(feature, index_difference)
     # replaces all zeros with the first non-zero value
     for i in range(index_difference):
         past_feature[i] = past_feature[index_difference]
-    return np.subtract(feature, past_feature) / TIME_PERIOD  # uses numpy to quickly/efficiently get the difference
+    return np.subtract(feature, past_feature)  # uses numpy to quickly/efficiently get the difference
 
 
 # calculates the average of every [horizon] values in an array
-def calc_average(features, horizon):
+def calc_average(feature, horizon):
     avg_array = []
-    for i in range(len(features)):
+    horizon_midpoint = int(math.floor(horizon / 2))
+    for i in range(len(feature)):
         # ensures the average is still calculated correctly at the beginning of the feature list
-        if (2 * i) < (horizon - 1):
-            temp_array = features[:(2 * i + 1)]
+        if i < horizon_midpoint:
+            temp_array = feature[:2 * i + 1]
+        elif i >= (len(feature) - horizon_midpoint):
+            first_index = i - round((len(feature) - i) / 2)
+            temp_array = feature[first_index:len(feature)]
         else:
             # the correct values are selected (i in the middle) even if the horizon is even
             if horizon % 2 == 0:
-                horizon_delta = int(math.floor(horizon / 2))
-                temp_array = features[(i - horizon_delta):(i + horizon_delta)]
+                temp_array = feature[(i - horizon_midpoint):(i + horizon_midpoint)]
             else:
-                horizon_delta = int(math.floor(horizon / 2))
-                temp_array = features[(i - horizon_delta):(i + horizon_delta + 1)]
+                temp_array = feature[(i - horizon_midpoint):(i + horizon_midpoint + 1)]
         avg_array.append(sum(temp_array) / len(temp_array))  # saves average to the array
+    return avg_array
+
+
+def calc_median(feature, horizon):
+    avg_array = []
+    horizon_midpoint = int(math.floor(horizon / 2))
+    for i in range(len(feature)):
+        # ensures the median is still registered at the beginning or end of the feature list
+        if i < horizon_midpoint:
+            avg_array.append(np.median(feature[:horizon]))
+        elif i > (len(feature) - horizon_midpoint):
+            avg_array.append(np.median(feature[len(feature) - horizon:len(feature)]))
+        else:
+            if horizon % 2 == 0:
+                avg_array.append(np.median(feature[(i - horizon_midpoint):(i + horizon_midpoint)]))
+            else:
+                avg_array.append(np.median(feature[(i - horizon_midpoint):(i + horizon_midpoint + 1)]))
     return avg_array
 
 
@@ -48,21 +67,17 @@ def shift(data, shift_value=1):
     return new_data
 
 
-def gen_all_features(TIME_PERIOD, motion, labels=None, horizon=None):
+def gen_all_features(motion, labels=None, horizon=None):
     velocity = []  # feature 2
     acceleration = []  # feature 3
     past_motion = []  # feature 4
     for i in range(len(motion)):
         # calculates the rate of change of 3D motion
-        velocity.append(calc_delta(motion[i], TIME_PERIOD))
+        velocity.append(calc_delta(motion[i]))
         # calculates the rate of change of rate of change of 3D motion (rate of change of velocity)
-        acceleration.append(calc_delta(velocity[i], TIME_PERIOD))
+        acceleration.append(calc_delta(velocity[i]))
         # uses the past data as a feature
-        past_motion.append(normalise(shift(motion[i])))  # previous value
-
-        # smoothing the velocity and acceleration
-        velocity[i] = normalise(calc_average(velocity[i], 5))
-        acceleration[i] = normalise(calc_average(acceleration[i], 5))
+        past_motion.append(shift(motion[i]))  # previous value
 
     # finds the optimum C and horizon values if no horizon values are inputted
     if (horizon is None) and (labels is not None):
@@ -88,7 +103,7 @@ def gen_all_features(TIME_PERIOD, motion, labels=None, horizon=None):
 
         for i in range(len(motion)):
             # calculates the average 3D motion
-            average = normalise(calc_average(motion[i], horizon[i]))  # last feature
+            average = calc_average(motion[i], horizon[i])  # last feature
             # adds the average feature to the features list
             features[i].append(average)
         return features, horizon
@@ -105,7 +120,7 @@ def gen_all_features(TIME_PERIOD, motion, labels=None, horizon=None):
 
         for i in range(len(motion)):
             # calculates the average 3D motion
-            average = normalise(calc_average(motion[i], horizon[i]))  # last feature
+            average = calc_average(motion[i], horizon[i])  # last feature
             # adds the average feature to the features list
             features[i].append(average)
         return features
@@ -115,17 +130,13 @@ def gen_all_features(TIME_PERIOD, motion, labels=None, horizon=None):
         exit()
 
 
-def gen_features(TIME_PERIOD, motion, labels=None, horizon=None):
+def gen_features(motion, labels=None, horizon=None):
     # calculates the rate of change of 3D motion
-    velocity = calc_delta(motion, TIME_PERIOD)
+    velocity = calc_delta(motion)
     # calculates the rate of change of rate of change of 3D motion (rate of change of velocity)
-    acceleration = calc_delta(velocity, TIME_PERIOD)
+    acceleration = calc_delta(velocity)
     # uses the past data as a feature
-    past_motion = normalise(shift(motion))  # previous value
-
-    # smoothing and normalising the velocity and acceleration
-    velocity = normalise(calc_average(velocity, 5))
-    acceleration = normalise(calc_average(acceleration, 5))
+    past_motion = shift(motion)  # previous value
 
     # finds the optimum C and horizon values if no horizon values are inputted
     if (horizon is None) and (labels is not None):
@@ -147,13 +158,13 @@ def gen_features(TIME_PERIOD, motion, labels=None, horizon=None):
         horizon = 5
 
         # calculates the average 3D motion
-        average = normalise(calc_average(motion, horizon))  # last feature
+        average = calc_average(motion, horizon)  # last feature
         # adds the average feature to the features list
         features.append(average)
         return features, horizon
     elif horizon is not None:
         # calculates the average 3D motion
-        average = normalise(calc_average(motion, horizon))  # last feature
+        average = calc_average(motion, horizon)  # last feature
 
         # returns features as a list
         return [
@@ -170,9 +181,12 @@ def gen_features(TIME_PERIOD, motion, labels=None, horizon=None):
 
 
 # normalises a list to be between -1 and 1
-def normalise(data):
-    mid = (np.max(data) + np.min(data)) / 2  # finds the midpoint of the data
-    sigma = (np.max(data) - np.min(data)) / 2  # calculates the spread of the data (range / 2)
+def normalise(data, mid=None, sigma=None):
+    # if no norm attributes are provided, they are calculated based on the inputted list
+    if mid is None:
+        mid = (np.max(data) + np.min(data)) / 2  # finds the midpoint of the data
+    if sigma is None:
+        sigma = (np.max(data) - np.min(data)) / 2  # calculates the spread of the data (range / 2)
     return np.subtract(data, mid) / sigma  # normalises the values to be between -1 and 1
 
 
@@ -186,3 +200,18 @@ def get_norm_attributes(data):
     mid = (np.max(data) + np.min(data)) / 2  # finds the midpoint of the data
     sigma = (np.max(data) - np.min(data)) / 2  # calculates the spread of the data (range / 2)
     return mid, sigma
+
+
+# manipulates a data list to match with the scale of another data list (same midpoint and spread)
+def match_scale(reference_data, data_to_scale):
+    [mid_r, sigma_r] = get_norm_attributes(reference_data)  # midpoint and spread of data list to scale to
+    return denormalise(normalise(data_to_scale), mid_r, sigma_r)
+
+
+def scale(data, scalar):
+    midpoint = (np.max(data) + np.min(data)) / 2  # finds the midpoint of the data
+    return ((data - midpoint) * scalar) + midpoint
+
+
+def offset(data, offset_value):
+    return np.add(data, offset_value)

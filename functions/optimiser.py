@@ -21,7 +21,11 @@ def tune_model(features, labels, model_type, parameters=None):
             # HalvingGridSearch is used instead of GridSearch to speed up the tuning process
             regression = HalvingGridSearchCV(svm.SVR(), parameters)  # SVM regression
             regression.fit(features, labels)  # fit based on R^2 metric
-            parameters = regression.best_params_  # best hyperparameters are saved in list
+            # best hyperparameters are saved in list
+            parameters = [
+                regression.best_params_["C"],
+                regression.best_params_["epsilon"]
+            ]
         else:
             # model parameters are set based on input
             regression = svm.SVR(

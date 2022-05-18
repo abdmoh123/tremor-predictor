@@ -22,12 +22,23 @@ class Buffer:
         return dh.filter_data(self._content, TIME_PERIOD, zero_phase)
 
     # returns a normalised version of its contents
-    def normalise(self):
-        return fh.normalise(self._content)
+    def normalise(self, mid=None, sigma=None):
+        return fh.normalise(self._content, mid, sigma)
 
     # returns midpoint and spread of its contents
-    def get_data_attributes(self):
-        return fh.get_norm_attributes(self.content)  # returns [mid, sigma]
+    def get_norm_attributes(self):
+        return fh.get_norm_attributes(self._content)  # returns [mid, sigma]
+
+    # matches the contents' scale to another data list and returns it
+    def match_scale(self, reference_data):
+        return fh.match_scale(reference_data, self._content)
+
+    # returns a scaled version of its contents
+    def scale(self, scalar):
+        return fh.scale(self._content, scalar)
+
+    def offset(self, offset_value):
+        return fh.offset(self._content, offset_value)
 
     @property
     def content(self):
