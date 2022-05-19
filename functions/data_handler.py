@@ -36,11 +36,8 @@ def read_data(file_name, l_bound, u_bound):
 
 # filters the input data to estimate the intended movement
 def filter_data(data, TIME_PERIOD, zero_phase=True):
-    nyquist = 1 / (2 * TIME_PERIOD)
-    cut_off = 5 / nyquist
-
     # butterworth based on IIR filter is used
-    [b, a] = signal.butter(2, cut_off, btype='lowpass')
+    [b, a] = get_filter_coefficients(TIME_PERIOD)
     # zero phase filter is used to generate the labels (slower but no distortion)
     if zero_phase:
         filtered_data = signal.filtfilt(b, a, data)
@@ -51,3 +48,17 @@ def filter_data(data, TIME_PERIOD, zero_phase=True):
         print("Error: Invalid boolean input!")
         exit()
     return np.ndarray.tolist(filtered_data)  # converts np array to list
+
+
+def get_filter_coefficients(TIME_PERIOD):
+    nyquist = 1 / (2 * TIME_PERIOD)
+    cut_off = 5 / nyquist
+
+    # butterworth based on IIR filter is used
+    return signal.butter(2, cut_off, btype='lowpass')
+
+
+def get_filter_delay(TIME_PERIOD):
+    [b, a] = get_filter_coefficients(TIME_PERIOD)
+    [w, gd] = signal.group_delay((b, a), whole=True, fs=round(1 / TIME_PERIOD))
+    return w, gd

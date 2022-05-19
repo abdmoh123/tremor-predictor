@@ -15,8 +15,9 @@ def tune_model(features, labels, model_type, parameters=None):
             # hyperparameter choices are tested to find the best combination
             parameters = {
                 'kernel': ['rbf'],
-                'C': [0.01, 0.1, 1, 10, 100],
-                'epsilon': [0.01, 0.1, 1, 10, 100]
+                'C': [1, 10, 100],
+                'gamma': ['auto'],
+                'epsilon': [0.01, 0.1]
             }
             # HalvingGridSearch is used instead of GridSearch to speed up the tuning process
             regression = HalvingGridSearchCV(svm.SVR(), parameters)  # SVM regression
@@ -38,12 +39,12 @@ def tune_model(features, labels, model_type, parameters=None):
     elif model_type == "Random Forest":
         # HalvingGridSearch not used as it was too slow
         if parameters is None:
-            parameters = [10, None]
+            parameters = 10
         # hyperparameters are set (no optimisation)
         regression = RandomForestRegressor(
-            n_estimators=parameters[0],
-            max_features=parameters[1]
-            )
+            n_estimators=parameters,
+            max_features="sqrt"
+        )
         regression.fit(features, labels)  # fit based on R^2 metric
         return regression, parameters
     else:

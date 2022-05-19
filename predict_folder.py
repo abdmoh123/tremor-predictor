@@ -14,6 +14,12 @@ def predict_dir(path, model_type):
     for file in os.listdir(directory):
         file_names.append(os.fsdecode(file))
 
+    if model_type == "SVM":
+        C_parameters = []
+        epsilon_parameters = []
+    elif model_type == "Random Forest":
+        num_trees = []
+
     r2 = []
     tremor_r2 = []
     nrmse = []
@@ -22,48 +28,69 @@ def predict_dir(path, model_type):
     avg_prediction_times = []
     # runs predictor algorithm for each dataset
     for file_name in file_names:
-        [accuracy, tremor_accuracy, max_training_time, avg_prediction_time] \
+        [model_hyperparameters, accuracy, tremor_accuracy, max_training_time, avg_prediction_time] \
             = start_predictor(path + "/" + file_name, model_type)
+
+        if model_type == "SVM":
+            C_parameters.append(np.array(model_hyperparameters)[:, 0].astype(float))
+            epsilon_parameters.append(np.array(model_hyperparameters)[:, 1].astype(float))
+        elif model_type == "Random Forest":
+            num_trees.append(model_hyperparameters)
+
         r2.append(accuracy[0])
         tremor_r2.append(tremor_accuracy[0])
         nrmse.append(accuracy[1])
         tremor_nrmse.append(tremor_accuracy[1])
         max_training_times.append(max_training_time)
         avg_prediction_times.append(avg_prediction_time)
+    if model_type == "SVM":
+        maxmin_hyperparameters = [
+            np.max(C_parameters), np.min(C_parameters),
+            np.max(epsilon_parameters), np.min(epsilon_parameters)
+        ]
+    elif model_type == "Random Forest":
+        maxmin_hyperparameters = [np.max(num_trees), np.min(num_trees)]
+
     overall_r2_score = np.mean(r2, axis=0)
     overall_tremor_r2_score = np.mean(tremor_r2, axis=0)
     overall_nrmse = np.mean(nrmse, axis=0)
     overall_tremor_nrmse = np.mean(tremor_nrmse, axis=0)
     overall_training_time = np.mean(max_training_times, axis=0)
     overall_avg_prediction_time = np.mean(avg_prediction_times, axis=0)
-    return \
-        overall_r2_score,\
-        overall_tremor_r2_score,\
-        overall_nrmse,\
-        overall_tremor_nrmse,\
-        overall_training_time,\
+    return [
+        maxmin_hyperparameters,
+        overall_r2_score,
+        overall_tremor_r2_score,
+        overall_nrmse,
+        overall_tremor_nrmse,
+        overall_training_time,
         overall_avg_prediction_time
+    ]
 
 
 if __name__ == '__main__':
-    # model = "SVM"
-    model = "Random Forest"
-    folder_name = "Surgeon Pointing"
+    model = "SVM"
+    # model = "Random Forest"
+    folder_name = "Surgeon Tracing"
 
     # finds the directory
     directory_name = str(pathlib.Path(__file__).parent.resolve()) + "/data/" + folder_name
 
-    [r2_scores, tremor_r2_scores, nrmses, tremor_nrmses, training_times, prediction_times] \
+    [hyperparameters, r2_scores, tremor_r2_scores, nrmses, tremor_nrmses, training_times, prediction_times] \
         = predict_dir(directory_name, model)
 
     # prints the average metrics for all datasets
+    if model == "SVM":
+        print("\nHyperparameters of the model [C_max, C_min, epsilon_max, epsilon_min]:", hyperparameters)
+    elif model == "Random Forest":
+        print("\nHyperparameters of the model [n_estimators_max, n_estimators_min]:", hyperparameters)
     print(
-        "\nAverage R2 score of the model:", str(r2_scores) + "%",
-        "\nAverage R2 score of the tremor component:", str(tremor_r2_scores) + "%",
-        "\nAverage Normalised RMS error of the model:", nrmses,
-        "\nAverage Normalised RMS error of the tremor component:", tremor_nrmses,
+        "Average R2 score of the model:", str(np.mean(r2_scores)) + "%",
+        "\nAverage R2 score of the tremor component:", str(np.mean(tremor_r2_scores)) + "%",
+        "\nAverage Normalised RMS error of the model:", np.mean(nrmses),
+        "\nAverage Normalised RMS error of the tremor component:", np.mean(tremor_nrmses),
         "\nAverage time taken to train:", str(training_times) + "s",
-        "\nAverage time taken to make a prediction:", str(prediction_times) + "s"
+        "\nAverage time taken to make a prediction:", str(np.mean(prediction_times)) + "s"
     )
 
     # data for plotting bar chart

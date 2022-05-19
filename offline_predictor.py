@@ -140,7 +140,6 @@ def main(FILE_NAME, MODEL_TYPE):
         predicted_tremor.append(np.subtract(test_motion[i], prediction[i]))
         # calculates the normalised RMSE of the tremor component
         tremor_accuracy.append(eva.calc_accuracy(actual_tremor[i], predicted_tremor[i]))
-    tremor_error = np.subtract(actual_tremor, predicted_tremor)
     # converts and prints a the NRMSE in a percentage form
     print("X Tremor accuracy [R2, NRMSE]: " +
           "[" + str(tremor_accuracy[0][0]) + "%" + ", " + str(tremor_accuracy[0][1]) + "]")
@@ -149,6 +148,15 @@ def main(FILE_NAME, MODEL_TYPE):
     print("Z Tremor accuracy [R2, NRMSE]: " +
           "[" + str(tremor_accuracy[2][0]) + "%" + ", " + str(tremor_accuracy[2][1]) + "]")
 
+    # shortens data list length to show more detail in graphs
+    for i in range(len(test_motion)):
+        test_motion[i] = test_motion[i][round(0.8 * len(test_motion[i])):]
+        test_label[i] = test_label[i][round(0.8 * len(test_label[i])):]
+        actual_tremor[i] = actual_tremor[i][round(0.8 * len(actual_tremor[i])):]
+        predicted_tremor[i] = predicted_tremor[i][round(0.8 * len(predicted_tremor[i])):]
+        prediction[i] = prediction[i][round(0.8 * len(prediction[i])):]
+    tremor_error = np.subtract(actual_tremor, predicted_tremor)
+
     # puts regression model data in a list
     model_data = [
         [test_motion[0], test_label[0], prediction[0], "X motion (mm)"],
@@ -156,6 +164,7 @@ def main(FILE_NAME, MODEL_TYPE):
         [test_motion[2], test_label[2], prediction[2], "Z motion (mm)"]
     ]
     model_axes_labels = ["Original signal", "Filtered output", "Predicted output"]
+    model_data_title = "Graph showing voluntary motion of model"
     # puts the tremor component data in a list
     tremor_data = [
         [actual_tremor[0], predicted_tremor[0], tremor_error[0], "X motion (mm)"],
@@ -163,6 +172,7 @@ def main(FILE_NAME, MODEL_TYPE):
         [actual_tremor[2], predicted_tremor[2], tremor_error[2], "Z motion (mm)"]
     ]
     tremor_axes_labels = ["Actual tremor", "Predicted tremor", "Tremor error"]
+    tremor_data_title = "Graph showing tremor component of model"
     # puts all features in a list for passing to the plot function (feature | legend)
     features_data = [
         [
@@ -190,8 +200,8 @@ def main(FILE_NAME, MODEL_TYPE):
 
     # time is shortened to match the length of the test data
     time = time[int(training_testing_ratio * len(data[0])):]
-    plt.plot_model(time, model_data, model_axes_labels)  # plots SVR model
-    plt.plot_model(time, tremor_data, tremor_axes_labels)  # plots the tremor components
+    plt.plot_model(time[round(0.8 * len(time)):], model_data, model_axes_labels, model_data_title)  # plots SVR model
+    plt.plot_model(time[round(0.8 * len(time)):], tremor_data, tremor_axes_labels, tremor_data_title)  # plots the tremor components
     # plots the features
     for axis in features_data:
         plt.plot_data(time, axis, "Time (s)", "N-motion")
@@ -231,18 +241,8 @@ def filter_data(data):
     return filtered_data
 
 
-def select_normalised_data(data):
-    [x_mid, x_sigma] = fh.get_norm_attributes(data[1])
-    [y_mid, y_sigma] = fh.get_norm_attributes(data[2])
-    [z_mid, z_sigma] = fh.get_norm_attributes(data[3])
-    x = fh.normalise(data[1])  # x axis (feature 1)
-    y = fh.normalise(data[2])  # y axis (feature 1)
-    z = fh.normalise(data[3])  # z axis (feature 1)
-    return [x, x_mid, x_sigma], [y, y_mid, y_sigma], [z, z_mid, z_sigma]
-
-
 if __name__ == '__main__':
     file_name = "data/real_tremor_data.csv"
-    model_type = "SVM"
-    # model_type = "Random Forest"
+    # model_type = "SVM"
+    model_type = "Random Forest"
     main(file_name, model_type)

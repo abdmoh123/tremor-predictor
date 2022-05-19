@@ -21,6 +21,10 @@ class Buffer:
     def filter(self, TIME_PERIOD, zero_phase=True):
         return dh.filter_data(self._content, TIME_PERIOD, zero_phase)
 
+    # returns the group delay of a butterworth filter
+    def get_filter_delay(self, TIME_PERIOD):
+        return dh.get_filter_delay(TIME_PERIOD)
+
     # returns a normalised version of its contents
     def normalise(self, mid=None, sigma=None):
         return fh.normalise(self._content, mid, sigma)

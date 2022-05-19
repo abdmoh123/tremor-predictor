@@ -79,6 +79,10 @@ def gen_all_features(motion, labels=None, horizon=None):
         # uses the past data as a feature
         past_motion.append(shift(motion[i]))  # previous value
 
+        # smoothens the features and removes sudden spikes
+        velocity[i] = normalise(calc_median(velocity[i], 5))
+        acceleration[i] = normalise(calc_median(acceleration[i], 5))
+
     # finds the optimum C and horizon values if no horizon values are inputted
     if (horizon is None) and (labels is not None):
         features = []
@@ -138,6 +142,10 @@ def gen_features(motion, labels=None, horizon=None):
     # uses the past data as a feature
     past_motion = shift(motion)  # previous value
 
+    # smoothens the features and removes sudden spikes
+    velocity = normalise(calc_median(velocity, 5))
+    acceleration = normalise(calc_median(acceleration, 5))
+
     # finds the optimum C and horizon values if no horizon values are inputted
     if (horizon is None) and (labels is not None):
         # puts all existing features in a list for model optimisation
@@ -158,13 +166,13 @@ def gen_features(motion, labels=None, horizon=None):
         horizon = 5
 
         # calculates the average 3D motion
-        average = calc_average(motion, horizon)  # last feature
+        average = normalise(calc_average(motion, horizon))
         # adds the average feature to the features list
         features.append(average)
         return features, horizon
     elif horizon is not None:
         # calculates the average 3D motion
-        average = calc_average(motion, horizon)  # last feature
+        average = normalise(calc_average(motion, horizon))
 
         # returns features as a list
         return [

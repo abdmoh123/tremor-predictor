@@ -95,7 +95,7 @@ def start_predictor(FILE_NAME, MODEL_TYPE):
         """ Evaluation phase """
         times = [reading_times, filtering_times, training_times, predicting_times, wait_times]
         start_index = prediction_start + BUFFER_LENGTH
-        return evaluate_model(times, data, start_index, total_predictions, TIME_PERIOD)
+        return evaluate_model(times, data, hyperparameters, start_index, total_predictions, TIME_PERIOD)
 
 
 # fills all buffers with data (in the beginning)
@@ -169,8 +169,13 @@ def predict_outputs(motion, regression, horizon, prediction_start, buffer_length
 
     # fills buffer in prediction mode (no label generation)
     [motion_buffer, reading_times] = fill_buffers(motion, buffer_length, TIME_PERIOD, True)
+
     # buffer for a linear butterworth (not zero-phase) IIR filter is prepared
     filter_buffer = Buffer(motion_buffer.content, 3000)
+    # delay of IIR filter is calculated and printed
+    [freq, samples] = filter_buffer.get_filter_delay(TIME_PERIOD)
+    filter_delay = samples[len(samples) - 1] / freq[len(freq) - 1]
+    print("Phase delay:", str(filter_delay) + "s", round(samples[len(samples) - 1]), "samples behind")
 
     print("\nPredicting...")
 
@@ -186,16 +191,16 @@ def predict_outputs(motion, regression, horizon, prediction_start, buffer_length
             filter_buffer.add(motion[i - j + 1])
 
         # generates features out of the data in the buffer
-        features = np.vstack(fh.gen_features(motion_buffer.normalise(), horizon=horizon)).T
-        # predicts the voluntary motion and denormalises it to the correct scale
-        prediction = fh.match_scale(
-            filter_buffer.filter(TIME_PERIOD)[len(filter_buffer.content) - buffer_length:len(filter_buffer.content)],
-            regression.predict(features)
+        features = np.vstack(fh.gen_features(fh.shift(motion_buffer.normalise()), horizon=horizon)).T
+        [midpoint, sigma] = fh.get_norm_attributes(
+            filter_buffer.filter(TIME_PERIOD, False)[len(filter_buffer.content) - buffer_length:]
         )
+        # predicts the voluntary motion and denormalises it to the correct scale
+        prediction = fh.denormalise(regression.predict(features), midpoint, sigma)
 
         # selects and saves only the new predictions to an external array for evaluation
         if len(prediction) > index_step:
-            new_predictions = prediction[len(prediction) - index_step:len(prediction)]
+            new_predictions = prediction[len(prediction) - index_step:]
         else:
             new_predictions = prediction
         for value in new_predictions:
@@ -222,7 +227,7 @@ def predict_outputs(motion, regression, horizon, prediction_start, buffer_length
 
 
 # evaluates model: Prints performance + accuracy and plots graphs
-def evaluate_model(times, data, start_index, total_predictions, TIME_PERIOD):
+def evaluate_model(times, data, hyperparameters, start_index, total_predictions, TIME_PERIOD):
     print("\nResults\n==============================================")  # separates results from other messages
     reading_times = times[0]
     filtering_time = times[1]
@@ -260,13 +265,16 @@ def evaluate_model(times, data, start_index, total_predictions, TIME_PERIOD):
         100 * (1 - (len(total_predictions[2]) / len(motion[2])))  # Z
     ]
     print("\nData loss [X, Y, Z]:", data_loss)
+    # outputs the hyperparameter values
+    print("Hyperparameters:", hyperparameters)
+
     # interpolates the motion data to be the same length as the results and shortens the graph (better view)
     for i in range(len(total_predictions)):
         # fills the gaps in the predictions list caused by skipping samples during prediction
         interp_pred = interpolate.interp1d(np.arange(len(total_predictions[i])), total_predictions[i])
         stretched_pred = interp_pred(np.linspace(0, len(total_predictions[i]) - 1, len(motion[i])))
         total_predictions[i] = stretched_pred
-        # selects the last 20% of data to show more detail in graph and to remove bad data at the beginning
+        # selects the last 20% of data to show more detail in graph and also to remove bad data at the beginning
         total_predictions[i] = total_predictions[i][round(0.8 * len(total_predictions[i])):len(total_predictions[i])]
         motion[i] = motion[i][round(0.8 * len(motion[i])):len(motion[i])]
 
@@ -311,7 +319,8 @@ def evaluate_model(times, data, start_index, total_predictions, TIME_PERIOD):
         [motion[1], filtered_motion[1], total_predictions[1], "Y motion (mm)"],
         [motion[2], filtered_motion[2], total_predictions[2], "Z motion (mm)"]
     ]
-    model_axes_labels = ["Original signal", "Filtered output", "Predicted output"]
+    model_axes_labels = ["Original signal", "Zero phase filter", "Prediction"]
+    model_data_title = "Graph showing voluntary motion of model"
     # puts the tremor component data in a list
     tremor_data = [
         [actual_tremor[0], predicted_tremor[0], tremor_error[0], "X motion (mm)"],
@@ -319,16 +328,16 @@ def evaluate_model(times, data, start_index, total_predictions, TIME_PERIOD):
         [actual_tremor[2], predicted_tremor[2], tremor_error[2], "Z motion (mm)"]
     ]
     tremor_axes_labels = ["Actual tremor", "Predicted tremor", "Tremor error"]
+    tremor_data_title = "Graph showing tremor component of model"
 
     t = np.array(data[0], dtype='f') * TIME_PERIOD  # samples are measured at a rate of 250Hz
-    pltr.plot_model(t[len(t) - len(motion[0]):], model_data, model_axes_labels)  # plots SVR model
-    pltr.plot_model(t[len(t) - len(motion[0]):], tremor_data, tremor_axes_labels)  # plots the tremor components
+    pltr.plot_model(t[len(t) - len(total_predictions[0]):], model_data, model_axes_labels, model_data_title)  # plots SVR model
+    pltr.plot_model(t[len(t) - len(total_predictions[0]):], tremor_data, tremor_axes_labels, tremor_data_title)  # plots the tremor components
 
-    return accuracy, tremor_accuracy, np.max(training_time), avg_predicting_times
+    return hyperparameters, accuracy, tremor_accuracy, np.max(training_time), avg_predicting_times
 
 
 if __name__ == '__main__':
-    # quick switching between ML algorithms/models
     model = "SVM"
     # model = "Random Forest"
 

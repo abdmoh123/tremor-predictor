@@ -30,6 +30,12 @@ def predict_dirs(model_type):
         for file in os.listdir(directory):
             file_names.append(os.fsdecode(file))
 
+    if model_type == "SVM":
+        C_parameters = []
+        epsilon_parameters = []
+    elif model_type == "Random Forest":
+        num_trees = []
+
     all_r2 = []
     all_tremor_r2 = []
     all_nrmse = []
@@ -38,8 +44,15 @@ def predict_dirs(model_type):
     all_prediction_times = []
     # runs the prediction code for each folder
     for folder_name in folder_names:
-        [r2_scores, tremor_r2_scores, nrmses, tremor_nrmses, training_times, prediction_times] \
+        [hyperparameters, r2_scores, tremor_r2_scores, nrmses, tremor_nrmses, training_times, prediction_times] \
             = predict_dir(directory_name + folder_name, model_type)
+
+        if model_type == "SVM":
+            C_parameters.extend(hyperparameters[:2])
+            epsilon_parameters.extend(hyperparameters[2:])
+        elif model_type == "Random Forest":
+            num_trees.extend(hyperparameters)
+
         all_r2.append(r2_scores)
         all_tremor_r2.append(tremor_r2_scores)
         all_nrmse.append(nrmses)
@@ -47,6 +60,15 @@ def predict_dirs(model_type):
         all_training_times.append(training_times)
         all_prediction_times.append(prediction_times)
 
+    if model_type == "SVM":
+        maxmin_hyperparameters = [
+            np.max(C_parameters), np.min(C_parameters),
+            np.max(epsilon_parameters), np.min(epsilon_parameters)
+        ]
+        print("\nHyperparameters of the model [C_max, C_min, epsilon_max, epsilon_min]:", maxmin_hyperparameters)
+    elif model_type == "Random Forest":
+        maxmin_hyperparameters = [np.max(num_trees), np.min(num_trees)]
+        print("\nHyperparameters of the model [n_estimators_max, n_estimators_min]:", maxmin_hyperparameters)
     # prints the average metrics for all datasets
     print(
         "\nAverage R2 score of the model:", str(np.mean(all_r2)) + "%",
@@ -56,92 +78,84 @@ def predict_dirs(model_type):
         "\nAverage time taken to train:", str(np.mean(all_training_times)) + "s",
         "\nAverage time taken to make a prediction:", str(np.mean(all_prediction_times)) + "s"
     )
-    # data for plotting bar chart
-    labels = ["Overall R2", "Tremor R2"]
 
-    if len(folder_names) <= 2:
-        fig, axes = plt.subplots(1, len(folder_names), figsize=(10, 10))
-    else:
-        fig, axes = plt.subplots(round(len(folder_names) / 2), round(len(folder_names) / 2), figsize=(10, 10))
+    fig, axes = plt.subplots(2, figsize=(10, 10))
     # bar chart properties
-    bar_width = 0.2
+    bar_width = 0.1
+    labels = folder_names
     x_axis = np.arange(len(labels))
 
-    x_axis_r2 = []
-    y_axis_r2 = []
-    z_axis_r2 = []
-    average_r2 = []
-    # run for every folder
+    # data for plotting bar chart
+    bar_xr2 = []
+    bar_yr2 = []
+    bar_zr2 = []
+    bar_xtremor_r2 = []
+    bar_ytremor_r2 = []
+    bar_ztremor_r2 = []
+    bar_training_times = np.round(np.multiply(all_training_times, 1000), 2)
+    bar_xpredict_times = []
+    bar_ypredict_times = []
+    bar_zpredict_times = []
+    # formats the lists above for use in generating bars in the chart
     for i in range(len(folder_names)):
-        x_axis_r2.append([round(all_r2[i][0]), round(all_tremor_r2[i][0])])
-        y_axis_r2.append([round(all_r2[i][1]), round(all_tremor_r2[i][1])])
-        z_axis_r2.append([round(all_r2[i][2]), round(all_tremor_r2[i][2])])
-        average_r2.append([round(np.mean(all_r2[i])), round(np.mean(all_tremor_r2[i]))])
+        bar_xr2.append(np.round(all_r2[i][0]))
+        bar_yr2.append(np.round(all_r2[i][1]))
+        bar_zr2.append(np.round(all_r2[i][2]))
+        bar_xtremor_r2.append(np.round(all_tremor_r2[i][0]))
+        bar_ytremor_r2.append(np.round(all_tremor_r2[i][1]))
+        bar_ztremor_r2.append(np.round(all_tremor_r2[i][2]))
+        bar_xpredict_times.append(round(1000 * all_prediction_times[i][0], 2))
+        bar_ypredict_times.append(round(1000 * all_prediction_times[i][1], 2))
+        bar_zpredict_times.append(round(1000 * all_prediction_times[i][2], 2))
 
-    if len(folder_names) <= 2:
-        for i in range(len(folder_names)):
-            # bars for each result
-            bar1 = axes[i].bar(x_axis - (3 * bar_width / 2), x_axis_r2[i], width=bar_width, label="X")
-            bar2 = axes[i].bar(x_axis - (bar_width / 2), y_axis_r2[i], width=bar_width, label="Y")
-            bar3 = axes[i].bar(x_axis + (bar_width / 2), z_axis_r2[i], width=bar_width, label="Z")
-            bar4 = axes[i].bar(x_axis + (3 * bar_width / 2), average_r2[i], width=bar_width, label="Avg")
-            # displays bar value above the bar
-            axes[i].bar_label(bar1)
-            axes[i].bar_label(bar2)
-            axes[i].bar_label(bar3)
-            axes[i].bar_label(bar4)
+    # bars for each result
+    bar1 = axes[0].bar(x_axis - (5 * bar_width / 2), bar_xr2, width=bar_width, label="R2 (X)")
+    bar2 = axes[0].bar(x_axis - (3 * bar_width / 2), bar_yr2, width=bar_width, label="R2 (Y)")
+    bar3 = axes[0].bar(x_axis - (bar_width / 2), bar_zr2, width=bar_width, label="R2 (Z)")
+    bar4 = axes[0].bar(x_axis + (bar_width / 2), bar_xtremor_r2, width=bar_width, label="Tremor R2 (X)")
+    bar5 = axes[0].bar(x_axis + (3 * bar_width / 2), bar_ytremor_r2, width=bar_width, label="Tremor R2 (Y)")
+    bar6 = axes[0].bar(x_axis + (5 * bar_width / 2), bar_ztremor_r2, width=bar_width, label="Tremor R2 (Z)")
+    bar7 = axes[1].bar(x_axis - (3 * bar_width / 2), bar_training_times, width=bar_width, label="Training time")
+    bar8 = axes[1].bar(x_axis - (bar_width / 2), bar_xpredict_times, width=bar_width, label="Prediction time (X)")
+    bar9 = axes[1].bar(x_axis + (bar_width / 2), bar_ypredict_times, width=bar_width, label="Prediction time (Y)")
+    bar10 = axes[1].bar(x_axis + (3 * bar_width / 2), bar_zpredict_times, width=bar_width, label="Prediction time (Z)")
+    # displays bar value above the bar
+    axes[0].bar_label(bar1)
+    axes[0].bar_label(bar2)
+    axes[0].bar_label(bar3)
+    axes[0].bar_label(bar4)
+    axes[0].bar_label(bar5)
+    axes[0].bar_label(bar6)
+    axes[1].bar_label(bar7)
+    axes[1].bar_label(bar8)
+    axes[1].bar_label(bar9)
+    axes[1].bar_label(bar10)
 
-            # axis labels + title
-            axes[i].set_title(folder_names[i], fontweight="bold")
-            axes[i].set_xlabel("R2 score metrics")
-            axes[i].set_ylabel("Accuracy (%)")
-            # setting ticks
-            axes[i].set_xticks(x_axis)
-            axes[i].set_xticklabels(labels)
-            # tick parameters
-            axes[i].tick_params(axis="x", which="both")
-            axes[i].tick_params(axis="y", which="both")
+    # axis labels + title
+    axes[0].set_title("Accuracy", fontweight="bold")
+    axes[0].set_xlabel("R2 score metrics")
+    axes[0].set_ylabel("Accuracy (%)")
+    axes[1].set_title("Speed", fontweight="bold")
+    axes[1].set_xlabel("Time metrics")
+    axes[1].set_ylabel("Time (ms)")
+    # setting ticks and tick params
+    axes[0].set_xticks(x_axis)
+    axes[0].set_xticklabels(labels)
+    axes[1].set_xticks(x_axis)
+    axes[1].set_xticklabels(labels)
+    axes[0].tick_params(axis="x", which="both")
+    axes[0].tick_params(axis="y", which="both")
+    axes[1].tick_params(axis="x", which="both")
+    axes[1].tick_params(axis="y", which="both")
 
-        # for figure legend
-        lines, labels = axes[-1].get_legend_handles_labels()
-    else:
-        r = c = 0  # row and column indices of subplot
-        for i in range(len(folder_names)):
-            # allows subplots to be displayed in a grid-like shape
-            if r >= len(folder_names) / 2:
-                r = 0  # goes back to the first row
-                c += 1  # moves on to the next column
-
-            # bars for each result
-            bar1 = axes[r, c].bar(x_axis - (3 * bar_width / 2), x_axis_r2[i], width=bar_width, label="X")
-            bar2 = axes[r, c].bar(x_axis - (bar_width / 2), y_axis_r2[i], width=bar_width, label="Y")
-            bar3 = axes[r, c].bar(x_axis + (bar_width / 2), z_axis_r2[i], width=bar_width, label="Z")
-            bar4 = axes[r, c].bar(x_axis + (3 * bar_width / 2), average_r2[i], width=bar_width, label="Avg")
-            # displays bar value above the bar
-            axes[r, c].bar_label(bar1)
-            axes[r, c].bar_label(bar2)
-            axes[r, c].bar_label(bar3)
-            axes[r, c].bar_label(bar4)
-
-            # axis labels + title
-            axes[r, c].set_title(folder_names[i], fontweight="bold")
-            axes[r, c].set_xlabel("R2 score metrics")
-            axes[r, c].set_ylabel("Accuracy (%)")
-            # setting ticks
-            axes[r, c].set_xticks(x_axis)
-            axes[r, c].set_xticklabels(labels)
-            # tick parameters
-            axes[r, c].tick_params(axis="x", which="both")
-            axes[r, c].tick_params(axis="y", which="both")
-
-            r += 1  # moves on to the next row in the subplot
-        # for figure legend
-        lines, labels = axes[0, 0].get_legend_handles_labels()
-    # figure legend
+    # legend
     font_prop = FontProperties()
     font_prop.set_size("small")  # font size of the legend content
-    legend = fig.legend(lines, labels, title="3D axis", prop=font_prop)
-    plt.setp(legend.get_title(), fontsize="medium")  # font size of the legend title
+    legend1 = axes[0].legend(prop=font_prop)
+    legend2 = axes[1].legend(prop=font_prop)
+    # font size of the legend title
+    plt.setp(legend1.get_title(), fontsize="medium")
+    plt.setp(legend2.get_title(), fontsize="medium")
     # figure title
     fig.suptitle((model + " results based on multiple datasets"), fontweight="bold", fontsize="x-large")
 

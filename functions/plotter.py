@@ -1,17 +1,24 @@
 import matplotlib.pyplot as plt
+from matplotlib.font_manager import FontProperties
 
 
 # plots the regression model (works with tremor component)
-def plot_model(time, data, data_labels):
-    fig, axes = plt.subplots(len(data))
+def plot_model(time, data, data_labels, title):
+    fig, axes = plt.subplots(len(data), figsize=(10, 10))
 
     # plots data
     for i in range(len(data)):
         for j in range(len(data[0]) - 1):
             axes[i].plot(time, data[i][j], label=data_labels[j], linewidth=0.5)
         axes[i].set(ylabel=data[i][len(data[0]) - 1])
-        axes[i].legend()
     axes[len(data) - 1].set(xlabel="Time (s)")
+
+    # for figure legend
+    font_prop = FontProperties()
+    font_prop.set_size("small")  # font size of the legend content
+    lines, labels = axes[-1].get_legend_handles_labels()
+    fig.legend(lines, labels, prop=font_prop)
+    fig.suptitle(title, fontweight="bold")
 
     # displays graphs
     plt.show()
