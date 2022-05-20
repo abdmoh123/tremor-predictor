@@ -170,7 +170,7 @@ def predict_outputs(motion, regression, horizon, prediction_start, buffer_length
     # fills buffer in prediction mode (no label generation)
     [motion_buffer, reading_times] = fill_buffers(motion, buffer_length, TIME_PERIOD, True)
 
-    # buffer for a linear butterworth (not zero-phase) IIR filter is prepared
+    # buffer for a non-linear butterworth (not zero-phase) IIR filter is prepared
     filter_buffer = Buffer(motion_buffer.content, 3000)
     # delay of IIR filter is calculated and printed
     [freq, samples] = filter_buffer.get_filter_delay(TIME_PERIOD)
@@ -274,9 +274,19 @@ def evaluate_model(times, data, hyperparameters, start_index, total_predictions,
         interp_pred = interpolate.interp1d(np.arange(len(total_predictions[i])), total_predictions[i])
         stretched_pred = interp_pred(np.linspace(0, len(total_predictions[i]) - 1, len(motion[i])))
         total_predictions[i] = stretched_pred
+
+    iir_filtered_motion = []
+    filter_accuracy = [[], []]
+    for i in range(len(motion)):
+        # calculates IIR filter values
+        iir_filtered_motion.append(dh.filter_data(motion[i], TIME_PERIOD, False))
+        # truncation is done to remove bad data in the beginning
+        iir_filtered_motion[i] = iir_filtered_motion[i][round(0.8 * len(iir_filtered_motion[i])):]
+
+    for i in range(len(motion)):
         # selects the last 20% of data to show more detail in graph and also to remove bad data at the beginning
-        total_predictions[i] = total_predictions[i][round(0.8 * len(total_predictions[i])):len(total_predictions[i])]
-        motion[i] = motion[i][round(0.8 * len(motion[i])):len(motion[i])]
+        total_predictions[i] = total_predictions[i][round(0.8 * len(total_predictions[i])):]
+        motion[i] = motion[i][round(0.8 * len(motion[i])):]
 
     filtered_motion = []
     accuracy = [[], []]  # [R2, NRMSE]
@@ -286,21 +296,35 @@ def evaluate_model(times, data, hyperparameters, start_index, total_predictions,
         [temp_R2, temp_rmse] = eva.calc_accuracy(filtered_motion[i], total_predictions[i])
         accuracy[0].append(temp_R2)  # [X, Y, Z]
         accuracy[1].append(temp_rmse)  # [X, Y, Z]
+
+        # accuracy of the IIR filter is calculated
+        [temp_R2, temp_rmse] = eva.calc_accuracy(filtered_motion[i], iir_filtered_motion[i])
+        filter_accuracy[0].append(temp_R2)
+        filter_accuracy[1].append(temp_rmse)
+
     # prints the accuracies of the overall voluntary motion (after completion)
     print(
-        "\nAccuracy",
+        "\nModel accuracy",
         "\nX [R2, NRMSE]: [" + str(accuracy[0][0]) + "%" + ", " + str(accuracy[1][0]) + "]",
         "\nY [R2, NRMSE]: [" + str(accuracy[0][1]) + "%" + ", " + str(accuracy[1][1]) + "]",
         "\nZ [R2, NRMSE]: [" + str(accuracy[0][2]) + "%" + ", " + str(accuracy[1][2]) + "]"
+    )
+    print(
+        "\nFilter accuracy",
+        "\nX [R2, NRMSE]: [" + str(filter_accuracy[0][0]) + "%" + ", " + str(filter_accuracy[1][0]) + "]",
+        "\nY [R2, NRMSE]: [" + str(filter_accuracy[0][1]) + "%" + ", " + str(filter_accuracy[1][1]) + "]",
+        "\nZ [R2, NRMSE]: [" + str(filter_accuracy[0][2]) + "%" + ", " + str(filter_accuracy[1][2]) + "]"
     )
 
     # gets the tremor component by subtracting from the voluntary motion
     actual_tremor = []
     predicted_tremor = []
+    iir_tremor = []
     tremor_accuracy = [[], []]  # [R2, NRMSE]
     for i in range(len(motion)):
         actual_tremor.append(np.subtract(motion[i], filtered_motion[i]))
         predicted_tremor.append(np.subtract(motion[i], total_predictions[i]))
+        iir_tremor.append(np.subtract(motion[i], iir_filtered_motion[i]))
         [temp_R2, temp_rmse] = eva.calc_tremor_accuracy(motion[i], total_predictions[i], filtered_motion[i])
         tremor_accuracy[0].append(temp_R2)
         tremor_accuracy[1].append(temp_rmse)
@@ -315,19 +339,19 @@ def evaluate_model(times, data, hyperparameters, start_index, total_predictions,
 
     # puts regression model data in a list
     model_data = [
-        [motion[0], filtered_motion[0], total_predictions[0], "X motion (mm)"],
-        [motion[1], filtered_motion[1], total_predictions[1], "Y motion (mm)"],
-        [motion[2], filtered_motion[2], total_predictions[2], "Z motion (mm)"]
+        [motion[0], filtered_motion[0], total_predictions[0], iir_filtered_motion[0], "X motion (mm)"],
+        [motion[1], filtered_motion[1], total_predictions[1], iir_filtered_motion[1], "Y motion (mm)"],
+        [motion[2], filtered_motion[2], total_predictions[2], iir_filtered_motion[2], "Z motion (mm)"]
     ]
-    model_axes_labels = ["Original signal", "Zero phase filter", "Prediction"]
+    model_axes_labels = ["Original signal", "Zero phase filter", "Prediction", "IIR filter"]
     model_data_title = "Graph showing voluntary motion of model"
     # puts the tremor component data in a list
     tremor_data = [
-        [actual_tremor[0], predicted_tremor[0], tremor_error[0], "X motion (mm)"],
-        [actual_tremor[1], predicted_tremor[1], tremor_error[1], "Y motion (mm)"],
-        [actual_tremor[2], predicted_tremor[2], tremor_error[2], "Z motion (mm)"]
+        [actual_tremor[0], predicted_tremor[0], tremor_error[0], iir_tremor[0], "X motion (mm)"],
+        [actual_tremor[1], predicted_tremor[1], tremor_error[1], iir_tremor[1], "Y motion (mm)"],
+        [actual_tremor[2], predicted_tremor[2], tremor_error[2], iir_tremor[2], "Z motion (mm)"]
     ]
-    tremor_axes_labels = ["Actual tremor", "Predicted tremor", "Tremor error"]
+    tremor_axes_labels = ["Actual tremor", "Predicted tremor", "Tremor error", "IIR tremor"]
     tremor_data_title = "Graph showing tremor component of model"
 
     t = np.array(data[0], dtype='f') * TIME_PERIOD  # samples are measured at a rate of 250Hz
@@ -338,7 +362,7 @@ def evaluate_model(times, data, hyperparameters, start_index, total_predictions,
 
 
 if __name__ == '__main__':
-    model = "SVM"
-    # model = "Random Forest"
+    # model = "SVM"
+    model = "Random Forest"
 
     start_predictor("./data/real_tremor_data.csv", model)
