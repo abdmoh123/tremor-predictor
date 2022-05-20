@@ -54,11 +54,5 @@ def get_filter_coefficients(TIME_PERIOD):
     nyquist = 1 / (2 * TIME_PERIOD)
     cut_off = 5 / nyquist
 
-    # butterworth based on IIR filter is used
+    # 2nd order IIR butterworth filter is used
     return signal.butter(2, cut_off, btype='lowpass')
-
-
-def get_filter_delay(TIME_PERIOD):
-    [b, a] = get_filter_coefficients(TIME_PERIOD)
-    [w, gd] = signal.group_delay((b, a), whole=True, fs=round(1 / TIME_PERIOD))
-    return w, gd

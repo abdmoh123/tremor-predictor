@@ -37,7 +37,6 @@ def tune_model(features, labels, model_type, parameters=None):
             regression.fit(features, labels)  # fit based on R^2 metric
         return regression, parameters
     elif model_type == "Random Forest":
-        # HalvingGridSearch not used as it was too slow
         if parameters is None:
             parameters = 10
         # hyperparameters are set (no optimisation)

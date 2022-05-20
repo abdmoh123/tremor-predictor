@@ -134,6 +134,19 @@ def gen_all_features(motion, labels=None, horizon=None):
         exit()
 
 
+def gen_tremor_features(motion):
+    # calculates the rate of change of 3D motion
+    velocity = calc_delta(motion)
+    # calculates the rate of change of rate of change of 3D motion (rate of change of velocity)
+    acceleration = calc_delta(velocity)
+
+    # smoothens the features and removes sudden spikes
+    velocity = calc_average(velocity, 5)
+    acceleration = calc_average(acceleration, 5)
+
+    return [velocity, acceleration]
+
+
 def gen_features(motion, labels=None, horizon=None):
     # calculates the rate of change of 3D motion
     velocity = calc_delta(motion)

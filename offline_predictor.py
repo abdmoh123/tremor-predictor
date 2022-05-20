@@ -21,10 +21,10 @@ def main(FILE_NAME, MODEL_TYPE):
     start_time = datetime.now()
     # reads data into memory and filters it
     data = dh.read_data(FILE_NAME, 200, 5000)  # real tremor data (t, x, y, z, grip force)
-    filtered_data = filter_data(data)  # filters data to get an estimate of intended movement (label)
+    filtered_data = dh.filter_data(data, TIME_PERIOD)  # filters data to get an estimate of intended movement (label)
     # 80% of data is used for training
     training_data = data[:, :int(training_testing_ratio * len(data[0]))]  # first 80% of data for training
-    filtered_training_data = filtered_data[:, :int(training_testing_ratio * len(filtered_data[0]))]  # training labels
+    filtered_training_data = np.array(filtered_data)[:, :int(training_testing_ratio * len(filtered_data[0]))]  # training labels
     time = np.array(data[0], dtype='f') * TIME_PERIOD  # samples are measured at a rate of 250Hz
     end_time = datetime.now()
     # time taken to read and split the data
@@ -80,7 +80,7 @@ def main(FILE_NAME, MODEL_TYPE):
 
     # 20% of the data is separated and used for testing
     test_data = data[:, int(training_testing_ratio * len(data[0])):]  # last 20% of data for testing
-    filtered_test_data = filtered_data[:, int(training_testing_ratio * len(filtered_data[0])):]  # testing labels
+    filtered_test_data = np.array(filtered_data)[:, int(training_testing_ratio * len(filtered_data[0])):]  # testing labels
     # test data is assigned
     test_motion = [test_data[1], test_data[2], test_data[3]]  # [X, Y, Z]
     test_label = [filtered_test_data[1], filtered_test_data[2], filtered_test_data[3]]  # [X, Y, Z]
@@ -127,9 +127,9 @@ def main(FILE_NAME, MODEL_TYPE):
     accuracy = []
     for i in range(len(test_label)):
         accuracy.append(eva.calc_accuracy(test_label[i], prediction[i]))
-    print("\nX Accuracy [R2, NRMSE]: " + "[" + str(accuracy[0][0]) + "%" + ", " + str(accuracy[0][1]) + "]")
-    print("Y Accuracy [R2, NRMSE]: " + "[" + str(accuracy[1][0]) + "%" + ", " + str(accuracy[1][1]) + "]")
-    print("Z Accuracy [R2, NRMSE]: " + "[" + str(accuracy[2][0]) + "%" + ", " + str(accuracy[2][1]) + "]")
+    print("\nX Accuracy [R2, RMSE]: " + "[" + str(accuracy[0][0]) + "%" + ", " + str(accuracy[0][1]) + "mm]")
+    print("Y Accuracy [R2, RMSE]: " + "[" + str(accuracy[1][0]) + "%" + ", " + str(accuracy[1][1]) + "mm]")
+    print("Z Accuracy [R2, RMSE]: " + "[" + str(accuracy[2][0]) + "%" + ", " + str(accuracy[2][1]) + "mm]")
 
     # gets the tremor component by subtracting from the voluntary motion
     actual_tremor = []
@@ -141,12 +141,12 @@ def main(FILE_NAME, MODEL_TYPE):
         # calculates the normalised RMSE of the tremor component
         tremor_accuracy.append(eva.calc_accuracy(actual_tremor[i], predicted_tremor[i]))
     # converts and prints a the NRMSE in a percentage form
-    print("X Tremor accuracy [R2, NRMSE]: " +
-          "[" + str(tremor_accuracy[0][0]) + "%" + ", " + str(tremor_accuracy[0][1]) + "]")
-    print("Y Tremor accuracy [R2, NRMSE]: " +
-          "[" + str(tremor_accuracy[1][0]) + "%" + ", " + str(tremor_accuracy[1][1]) + "]")
-    print("Z Tremor accuracy [R2, NRMSE]: " +
-          "[" + str(tremor_accuracy[2][0]) + "%" + ", " + str(tremor_accuracy[2][1]) + "]")
+    print("X Tremor accuracy [R2, RMSE]: " +
+          "[" + str(tremor_accuracy[0][0]) + "%" + ", " + str(tremor_accuracy[0][1]) + "mm]")
+    print("Y Tremor accuracy [R2, RMSE]: " +
+          "[" + str(tremor_accuracy[1][0]) + "%" + ", " + str(tremor_accuracy[1][1]) + "mm]")
+    print("Z Tremor accuracy [R2, RMSE]: " +
+          "[" + str(tremor_accuracy[2][0]) + "%" + ", " + str(tremor_accuracy[2][1]) + "mm]")
 
     # shortens data list length to show more detail in graphs
     for i in range(len(test_motion)):
@@ -209,40 +209,30 @@ def main(FILE_NAME, MODEL_TYPE):
     # prints performance of the program
     print(
         "\nPerformance:\n==================================",
-        "\nTime taken to read data:", data_reading_time,
-        "\nTime taken to select and normalise data for creating training features:", selecting_training_time,
-        "\nTime taken to generate features for training:", training_features_time,
+        "\nTime taken to read data:", str(data_reading_time) + "s",
+        "\nTime taken to select and normalise data for creating training features:", str(selecting_training_time) + "s",
+        "\nTime taken to generate features for training:", str(training_features_time) + "s",
         "\nTime taken to tune and train regression model:",
-        "\n\tX axis =", tuned_training_time[0],
-        "\n\tY axis =", tuned_training_time[1],
-        "\n\tZ axis =", tuned_training_time[2],
-        "\nTime taken to select and normalise data for creating training features:", selecting_test_time,
-        "\nTime taken to generate features for testing/predicting:", test_features_time,
+        "\n\tX axis =", str(tuned_training_time[0]) + "s",
+        "\n\tY axis =", str(tuned_training_time[1]) + "s",
+        "\n\tZ axis =", str(tuned_training_time[2]) + "s",
+        "\nTime taken to select and normalise data for creating training features:", str(selecting_test_time) + "s",
+        "\nTime taken to generate features for testing/predicting:", str(test_features_time) + "s",
         "\nTime taken to predict voluntary motion:",
-        "\n\tX axis =", predicting_time[0],
-        "\n\tY axis =", predicting_time[1],
-        "\n\tZ axis =", predicting_time[2],
+        "\n\tX axis =", str(predicting_time[0]) + "s",
+        "\n\tY axis =", str(predicting_time[1]) + "s",
+        "\n\tZ axis =", str(predicting_time[2]) + "s",
         "\nTotal time taken:",
-        (data_reading_time + selecting_training_time + training_features_time + tuned_training_time[0] +
-         tuned_training_time[1] + tuned_training_time[2] + selecting_test_time + test_features_time +
-         predicting_time[0] + predicting_time[1] + predicting_time[2])
+        str(
+            data_reading_time + selecting_training_time + training_features_time + tuned_training_time[0] +
+            tuned_training_time[1] + tuned_training_time[2] + selecting_test_time + test_features_time +
+            predicting_time[0] + predicting_time[1] + predicting_time[2]
+        ) + "s"
     )
-
-
-# filters the input data to estimate the intended movement
-def filter_data(data):
-    time_period = 1 / 250
-    nyquist = 1 / (2 * time_period)
-    cut_off = 5 / nyquist
-
-    # zero phase filter is used to generate the labels (slow but very accurate)
-    [b, a] = signal.butter(2, cut_off, btype='low')
-    filtered_data = signal.filtfilt(b, a, data)
-    return filtered_data
 
 
 if __name__ == '__main__':
     file_name = "data/real_tremor_data.csv"
-    # model_type = "SVM"
-    model_type = "Random Forest"
+    model_type = "SVM"
+    # model_type = "Random Forest"
     main(file_name, model_type)

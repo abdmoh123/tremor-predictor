@@ -172,10 +172,6 @@ def predict_outputs(motion, regression, horizon, prediction_start, buffer_length
 
     # buffer for a non-linear butterworth (not zero-phase) IIR filter is prepared
     filter_buffer = Buffer(motion_buffer.content, 3000)
-    # delay of IIR filter is calculated and printed
-    [freq, samples] = filter_buffer.get_filter_delay(TIME_PERIOD)
-    filter_delay = samples[len(samples) - 1] / freq[len(freq) - 1]
-    print("Phase delay:", str(filter_delay) + "s", round(samples[len(samples) - 1]), "samples behind")
 
     print("\nPredicting...")
 
@@ -244,16 +240,16 @@ def evaluate_model(times, data, hyperparameters, start_index, total_predictions,
     max_index_skipped = np.floor(np.divide(max_predicting_times, TIME_PERIOD)) + 1
     total_prediction_time = [sum(predicting_times[0]), sum(predicting_times[1]), sum(predicting_times[2])]
     print(
-        "\nTotal time filling buffer:", np.max(total_reading_time),
-        "\nTotal time filtering buffer (generating labels):", np.max(total_filtering_time),
-        "\nTotal time taken during training/tuning:", np.max(training_time),
-        "\nMaximum time taken for a prediction [X, Y, Z]:", max_predicting_times,
-        "\nAverage time taken for a prediction [X, Y, Z]:", avg_predicting_times,
-        "\nMinimum time taken for a prediction [X, Y, Z]:", min_predicting_times,
-        "\nMaximum samples per prediction loop [X, Y, Z]:", max_index_skipped,
+        "\nTotal time filling buffer:", str(np.max(total_reading_time)) + "s",
+        "\nTotal time filtering buffer (generating labels):", str(np.max(total_filtering_time)) + "s",
+        "\nTotal time taken during training/tuning:", str(np.max(training_time)) + "s",
+        "\nMaximum time taken for a prediction [X, Y, Z]:", str(max_predicting_times) + "s",
+        "\nAverage time taken for a prediction [X, Y, Z]:", str(avg_predicting_times) + "s",
+        "\nMinimum time taken for a prediction [X, Y, Z]:", str(min_predicting_times) + "s",
+        "\nMaximum samples per prediction loop [X, Y, Z]:", str(max_index_skipped) + "s",
         "\nTotal prediction time:",
-        np.max(np.add(total_prediction_time, wait_time)), "/",
-        (len(predicting_times[0]) * TIME_PERIOD)
+        str(np.max(np.add(total_prediction_time, wait_time))) + "s /",
+        str(len(predicting_times[0]) * TIME_PERIOD) + "s"
     )
 
     # truncates the data to the same length as the predictions
@@ -264,7 +260,7 @@ def evaluate_model(times, data, hyperparameters, start_index, total_predictions,
         100 * (1 - (len(total_predictions[1]) / len(motion[1]))),  # Y
         100 * (1 - (len(total_predictions[2]) / len(motion[2])))  # Z
     ]
-    print("\nData loss [X, Y, Z]:", data_loss)
+    print("\nData loss [X, Y, Z]:", str(data_loss) + "%")
     # outputs the hyperparameter values
     print("Hyperparameters:", hyperparameters)
 
@@ -305,15 +301,15 @@ def evaluate_model(times, data, hyperparameters, start_index, total_predictions,
     # prints the accuracies of the overall voluntary motion (after completion)
     print(
         "\nModel accuracy",
-        "\nX [R2, NRMSE]: [" + str(accuracy[0][0]) + "%" + ", " + str(accuracy[1][0]) + "]",
-        "\nY [R2, NRMSE]: [" + str(accuracy[0][1]) + "%" + ", " + str(accuracy[1][1]) + "]",
-        "\nZ [R2, NRMSE]: [" + str(accuracy[0][2]) + "%" + ", " + str(accuracy[1][2]) + "]"
+        "\nX [R2, RMSE]: [" + str(accuracy[0][0]) + "%" + ", " + str(accuracy[1][0]) + "mm]",
+        "\nY [R2, RMSE]: [" + str(accuracy[0][1]) + "%" + ", " + str(accuracy[1][1]) + "mm]",
+        "\nZ [R2, RMSE]: [" + str(accuracy[0][2]) + "%" + ", " + str(accuracy[1][2]) + "mm]"
     )
     print(
         "\nFilter accuracy",
-        "\nX [R2, NRMSE]: [" + str(filter_accuracy[0][0]) + "%" + ", " + str(filter_accuracy[1][0]) + "]",
-        "\nY [R2, NRMSE]: [" + str(filter_accuracy[0][1]) + "%" + ", " + str(filter_accuracy[1][1]) + "]",
-        "\nZ [R2, NRMSE]: [" + str(filter_accuracy[0][2]) + "%" + ", " + str(filter_accuracy[1][2]) + "]"
+        "\nX [R2, RMSE]: [" + str(filter_accuracy[0][0]) + "%" + ", " + str(filter_accuracy[1][0]) + "mm]",
+        "\nY [R2, RMSE]: [" + str(filter_accuracy[0][1]) + "%" + ", " + str(filter_accuracy[1][1]) + "mm]",
+        "\nZ [R2, RMSE]: [" + str(filter_accuracy[0][2]) + "%" + ", " + str(filter_accuracy[1][2]) + "mm]"
     )
 
     # gets the tremor component by subtracting from the voluntary motion
@@ -332,9 +328,9 @@ def evaluate_model(times, data, hyperparameters, start_index, total_predictions,
     # prints the accuracies of the overall tremor component (after completion)
     print(
         "\nTremor accuracy",
-        "\nX [R2, NRMSE]: [" + str(tremor_accuracy[0][0]) + "%" + ", " + str(tremor_accuracy[1][0]) + "]",
-        "\nY [R2, NRMSE]: [" + str(tremor_accuracy[0][1]) + "%" + ", " + str(tremor_accuracy[1][1]) + "]",
-        "\nZ [R2, NRMSE]: [" + str(tremor_accuracy[0][2]) + "%" + ", " + str(tremor_accuracy[1][2]) + "]"
+        "\nX [R2, RMSE]: [" + str(tremor_accuracy[0][0]) + "%" + ", " + str(tremor_accuracy[1][0]) + "mm]",
+        "\nY [R2, RMSE]: [" + str(tremor_accuracy[0][1]) + "%" + ", " + str(tremor_accuracy[1][1]) + "mm]",
+        "\nZ [R2, RMSE]: [" + str(tremor_accuracy[0][2]) + "%" + ", " + str(tremor_accuracy[1][2]) + "mm]"
     )
 
     # puts regression model data in a list
@@ -362,7 +358,8 @@ def evaluate_model(times, data, hyperparameters, start_index, total_predictions,
 
 
 if __name__ == '__main__':
-    # model = "SVM"
-    model = "Random Forest"
+    model = "SVM"
+    # model = "Random Forest"
+    file_name = "./data/real_tremor_data.csv"
 
-    start_predictor("./data/real_tremor_data.csv", model)
+    start_predictor(file_name, model)

@@ -3,7 +3,7 @@ import os
 import pathlib
 import numpy as np
 import matplotlib.pyplot as plt
-from real_time_predictor import start_predictor
+from real_time_voluntary_motion import start_predictor
 
 
 def predict_dir(path, model_type):
@@ -76,7 +76,7 @@ if __name__ == '__main__':
     # finds the directory
     directory_name = str(pathlib.Path(__file__).parent.resolve()) + "/data/" + folder_name
 
-    [hyperparameters, r2_scores, tremor_r2_scores, nrmses, tremor_nrmses, training_times, prediction_times] \
+    [hyperparameters, r2_scores, tremor_r2_scores, rmses, tremor_rmses, training_times, prediction_times] \
         = predict_dir(directory_name, model)
 
     # prints the average metrics for all datasets
@@ -87,8 +87,8 @@ if __name__ == '__main__':
     print(
         "Average R2 score of the model:", str(np.mean(r2_scores)) + "%",
         "\nAverage R2 score of the tremor component:", str(np.mean(tremor_r2_scores)) + "%",
-        "\nAverage Normalised RMS error of the model:", np.mean(nrmses),
-        "\nAverage Normalised RMS error of the tremor component:", np.mean(tremor_nrmses),
+        "\nAverage RMS error of the model:", str(np.mean(rmses)) + "mm",
+        "\nAverage RMS error of the tremor component:", str(np.mean(tremor_rmses)) + "mm",
         "\nAverage time taken to train:", str(training_times) + "s",
         "\nAverage time taken to make a prediction:", str(np.mean(prediction_times)) + "s"
     )

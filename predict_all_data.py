@@ -38,13 +38,13 @@ def predict_dirs(model_type):
 
     all_r2 = []
     all_tremor_r2 = []
-    all_nrmse = []
-    all_tremor_nrmse = []
+    all_rmse = []
+    all_tremor_rmse = []
     all_training_times = []
     all_prediction_times = []
     # runs the prediction code for each folder
     for folder_name in folder_names:
-        [hyperparameters, r2_scores, tremor_r2_scores, nrmses, tremor_nrmses, training_times, prediction_times] \
+        [hyperparameters, r2_scores, tremor_r2_scores, rmses, tremor_rmses, training_times, prediction_times] \
             = predict_dir(directory_name + folder_name, model_type)
 
         if model_type == "SVM":
@@ -55,8 +55,8 @@ def predict_dirs(model_type):
 
         all_r2.append(r2_scores)
         all_tremor_r2.append(tremor_r2_scores)
-        all_nrmse.append(nrmses)
-        all_tremor_nrmse.append(tremor_nrmses)
+        all_rmse.append(rmses)
+        all_tremor_rmse.append(tremor_rmses)
         all_training_times.append(training_times)
         all_prediction_times.append(prediction_times)
 
@@ -73,8 +73,8 @@ def predict_dirs(model_type):
     print(
         "\nAverage R2 score of the model:", str(np.mean(all_r2)) + "%",
         "\nAverage R2 score of the tremor component:", str(np.mean(all_tremor_r2)) + "%",
-        "\nAverage Normalised RMS error of the model:", np.mean(all_nrmse),
-        "\nAverage Normalised RMS error of the tremor component:", np.mean(all_tremor_nrmse),
+        "\nAverage RMS error of the model:", str(np.mean(all_rmse)) + "mm",
+        "\nAverage RMS error of the tremor component:", str(np.mean(all_tremor_rmse)) + "mm",
         "\nAverage time taken to train:", str(np.mean(all_training_times)) + "s",
         "\nAverage time taken to make a prediction:", str(np.mean(all_prediction_times)) + "s"
     )
