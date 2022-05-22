@@ -2,7 +2,7 @@
 
 Implementation by Abdul Hawisa.
 
-Data collected by M<sup>2</sup>S<sup>2</sup> system - see papers referenced below:
+Data provided and collected by M<sup>2</sup>S<sup>2</sup> system - see papers referenced below:
 
 - E. L. M. Su, T. L. Win, W. T. Ang, T. C. Lim, C. L. Teo and E. Burdet, "Micromanipulation accuracy in pointing and tracing investigated with a contact-free measurement system", Proc. Annu. Int. Conf. IEEE Eng. Med. Biol. Soc., pp. 3960-3963, Sep. 2009.
 - T. L. Win, U. X. Tan, C. Y. Shee and W. T. Ang, "Design and calibration of an optical micro motion sensing system for micromanipulation tasks", Proc. IEEE Int. Conf. Robot. Autom., pp. 3383-3388, Apr. 2007.
