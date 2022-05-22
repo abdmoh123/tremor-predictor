@@ -51,33 +51,21 @@ def tune_model(features, labels, model_type, parameters=None):
         exit()
 
 
-# finds the parameter value that generates the optimal feature values for an SVM regression model
-def optimise_parameter(features, labels, parameter):
+# DEPRECIATED - finds the optimal number of data for averaging the motion
+def optimise_horizon(features, labels):
     rms_error = 100  # initialised as a large value
     feature = []
 
-    if parameter == "horizon":
-        final_parameter = 1  # horizon value (starts at 1 to prevent division by zero)
-        max_parameter = len(features[0])  # limit for the horizon loop
-        parameter_increment = 2
-        temp_parameter = final_parameter  # temp value for iteration
+    final_parameter = 1  # horizon value (starts at 1 to prevent division by zero)
+    max_parameter = len(features[0])  # limit for the horizon loop
+    parameter_increment = 2
+    temp_parameter = final_parameter  # temp value for iteration
 
-        # loop puts all possible average features in a list
-        while temp_parameter <= max_parameter:
-            # calculates the average motion
-            feature.append(fh.normalise(fh.calc_average(features[0], temp_parameter)))
-            temp_parameter += parameter_increment  # horizon values are incremented in values of 2
-    elif parameter == "shift":
-        final_parameter = 1  # shift value (when optimising past motion feature)
-        max_parameter = len(features[0])  # can't shift more than length of feature list
-        parameter_increment = 1
-        temp_parameter = final_parameter  # temp value for iteration
-
-        # loop puts all possible shifted/past motion features in a list
-        while temp_parameter <= max_parameter:
-            # shifts the input motion by a set amount to get the past motion as a feature
-            feature.append(fh.shift(features[0], temp_parameter))
-            temp_parameter += parameter_increment  # increments the shift value
+    # loop puts all possible average features in a list
+    while temp_parameter <= max_parameter:
+        # calculates the average motion
+        feature.append(fh.normalise(fh.calc_average(features[0], temp_parameter)))
+        temp_parameter += parameter_increment  # horizon values are incremented in values of 2
 
     # loop evaluates models repeatedly to find optimal horizon/shift value
     for i in range(len(feature)):

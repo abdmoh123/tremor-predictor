@@ -9,7 +9,7 @@ from matplotlib.font_manager import FontProperties
 from predict_folder import predict_dir
 
 
-def predict_dirs(model_type):
+def predict_dirs(model_type, target_prediction):
     directory_name = str(pathlib.Path(__file__).parent.resolve()) + "/data/"
     # list holding all folders to use
     folder_names = [
@@ -45,7 +45,7 @@ def predict_dirs(model_type):
     # runs the prediction code for each folder
     for folder_name in folder_names:
         [hyperparameters, r2_scores, tremor_r2_scores, rmses, tremor_rmses, training_times, prediction_times] \
-            = predict_dir(directory_name + folder_name, model_type)
+            = predict_dir(directory_name + folder_name, model_type, target_prediction)
 
         if model_type == "SVM":
             C_parameters.extend(hyperparameters[:2])
@@ -163,7 +163,12 @@ def predict_dirs(model_type):
 
 
 if __name__ == '__main__':
+    # choose what ML regression algorithm to use
     # model = "SVM"
     model = "Random Forest"
 
-    predict_dirs(model)
+    # choose what output to predict
+    # prediction_target = "voluntary motion"
+    prediction_target = "tremor component"
+
+    predict_dirs(model, prediction_target)

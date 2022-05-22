@@ -21,10 +21,6 @@ class Buffer:
     def filter(self, TIME_PERIOD, zero_phase=True):
         return dh.filter_data(self._content, TIME_PERIOD, zero_phase)
 
-    # returns the group delay of a butterworth filter
-    def get_filter_delay(self, TIME_PERIOD):
-        return dh.get_filter_delay(TIME_PERIOD)
-
     # returns a normalised version of its contents
     def normalise(self, mid=None, sigma=None):
         return fh.normalise(self._content, mid, sigma)
@@ -32,17 +28,6 @@ class Buffer:
     # returns midpoint and spread of its contents
     def get_norm_attributes(self):
         return fh.get_norm_attributes(self._content)  # returns [mid, sigma]
-
-    # matches the contents' scale to another data list and returns it
-    def match_scale(self, reference_data):
-        return fh.match_scale(reference_data, self._content)
-
-    # returns a scaled version of its contents
-    def scale(self, scalar):
-        return fh.scale(self._content, scalar)
-
-    def offset(self, offset_value):
-        return fh.offset(self._content, offset_value)
 
     @property
     def content(self):

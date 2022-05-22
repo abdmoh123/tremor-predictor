@@ -3,10 +3,11 @@ import os
 import pathlib
 import numpy as np
 import matplotlib.pyplot as plt
-from real_time_voluntary_motion import start_predictor
+import real_time_voluntary_motion as voluntary_motion_predictor
+import real_time_tremor_component as tremor_predictor
 
 
-def predict_dir(path, model_type):
+def predict_dir(path, model_type, target_prediction):
     directory = os.fsencode(path)
 
     # puts all txt files' names in a list
@@ -19,6 +20,9 @@ def predict_dir(path, model_type):
         epsilon_parameters = []
     elif model_type == "Random Forest":
         num_trees = []
+    else:
+        print("Invalid model type!")
+        exit()
 
     r2 = []
     tremor_r2 = []
@@ -28,14 +32,24 @@ def predict_dir(path, model_type):
     avg_prediction_times = []
     # runs predictor algorithm for each dataset
     for file_name in file_names:
-        [model_hyperparameters, accuracy, tremor_accuracy, max_training_time, avg_prediction_time] \
-            = start_predictor(path + "/" + file_name, model_type)
+        if target_prediction == "voluntary motion":
+            [model_hyperparameters, accuracy, tremor_accuracy, max_training_time, avg_prediction_time] \
+                = voluntary_motion_predictor.start_predictor(path + "/" + file_name, model_type)
+        elif target_prediction == "tremor component":
+            [model_hyperparameters, accuracy, tremor_accuracy, max_training_time, avg_prediction_time] \
+                = tremor_predictor.start_predictor(path + "/" + file_name, model_type)
+        else:
+            print("Invalid prediction target!")
+            exit()
 
         if model_type == "SVM":
             C_parameters.append(np.array(model_hyperparameters)[:, 0].astype(float))
             epsilon_parameters.append(np.array(model_hyperparameters)[:, 1].astype(float))
         elif model_type == "Random Forest":
             num_trees.append(model_hyperparameters)
+        else:
+            print("Invalid model type!")
+            exit()
 
         r2.append(accuracy[0])
         tremor_r2.append(tremor_accuracy[0])
@@ -50,6 +64,9 @@ def predict_dir(path, model_type):
         ]
     elif model_type == "Random Forest":
         maxmin_hyperparameters = [np.max(num_trees), np.min(num_trees)]
+    else:
+        print("Invalid model type!")
+        exit()
 
     overall_r2_score = np.mean(r2, axis=0)
     overall_tremor_r2_score = np.mean(tremor_r2, axis=0)
@@ -69,21 +86,34 @@ def predict_dir(path, model_type):
 
 
 if __name__ == '__main__':
+    # choose what ML regression algorithm to use
     model = "SVM"
     # model = "Random Forest"
-    folder_name = "Surgeon Tracing"
+
+    # choose what output to predict
+    prediction_target = "voluntary motion"
+    # prediction_target = "tremor component"
+
+    # choose which group of datasets to use
+    folder_name = "Novice Pointing"
+    # folder_name = "Novice Tracing"
+    # folder_name = "Surgeon Pointing"
+    # folder_name = "Surgeon Tracing"
 
     # finds the directory
     directory_name = str(pathlib.Path(__file__).parent.resolve()) + "/data/" + folder_name
 
     [hyperparameters, r2_scores, tremor_r2_scores, rmses, tremor_rmses, training_times, prediction_times] \
-        = predict_dir(directory_name, model)
+        = predict_dir(directory_name, model, prediction_target)
 
     # prints the average metrics for all datasets
     if model == "SVM":
         print("\nHyperparameters of the model [C_max, C_min, epsilon_max, epsilon_min]:", hyperparameters)
     elif model == "Random Forest":
         print("\nHyperparameters of the model [n_estimators_max, n_estimators_min]:", hyperparameters)
+    else:
+        print("Invalid model type!")
+        exit()
     print(
         "Average R2 score of the model:", str(np.mean(r2_scores)) + "%",
         "\nAverage R2 score of the tremor component:", str(np.mean(tremor_r2_scores)) + "%",

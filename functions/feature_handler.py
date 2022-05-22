@@ -95,14 +95,15 @@ def gen_all_features(motion, labels=None, horizon=None):
                 past_motion[i]
             ])
 
-        # finds the optimum value for horizon
+        # finds the optimum value for horizon (DEPRECIATED)
         # print("Optimising horizons...")
         # horizon = []
         # # only required to run once
         # for i in range(len(features)):
-        #     horizon.append(op.optimise_parameter(features[i], labels[i], "horizon"))
+        #     horizon.append(op.optimise_horizon(features[i], labels[i]))
         # print("Done!")
-        # used to save time (optimising is only required once)
+
+        # number of data used for averaging
         horizon = [30, 30, 30]  # X, Y, Z
 
         for i in range(len(motion)):
@@ -134,19 +135,6 @@ def gen_all_features(motion, labels=None, horizon=None):
         exit()
 
 
-def gen_tremor_features(motion):
-    # calculates the rate of change of 3D motion
-    velocity = calc_delta(motion)
-    # calculates the rate of change of rate of change of 3D motion (rate of change of velocity)
-    acceleration = calc_delta(velocity)
-
-    # smoothens the features and removes sudden spikes
-    velocity = calc_average(velocity, 5)
-    acceleration = calc_average(acceleration, 5)
-
-    return [velocity, acceleration]
-
-
 def gen_features(motion, labels=None, horizon=None):
     # calculates the rate of change of 3D motion
     velocity = calc_delta(motion)
@@ -169,13 +157,13 @@ def gen_features(motion, labels=None, horizon=None):
             past_motion
         ]
 
-        # finds the optimum value for horizon
+        # finds the optimum value for horizon (DEPRECIATED)
         # print("Optimising horizons...")
         # # only required to run once
-        # horizon = op.optimise_parameter(features, labels, "horizon")
+        # horizon = op.optimise_horizon(features, labels)
         # print("Done!")
 
-        # used to save time (optimising is only required once)
+        # number of data used for averaging
         horizon = 5
 
         # calculates the average 3D motion
@@ -201,6 +189,19 @@ def gen_features(motion, labels=None, horizon=None):
         exit()
 
 
+def gen_tremor_feature(motion):
+    # calculates the rate of change of 3D motion
+    velocity = calc_delta(motion)
+    # calculates the rate of change of rate of change of 3D motion (rate of change of velocity)
+    acceleration = calc_delta(velocity)
+
+    # smoothens the features
+    velocity = calc_average(velocity, 5)
+    acceleration = calc_average(acceleration, 5)
+
+    return [velocity, acceleration]
+
+
 # normalises a list to be between -1 and 1
 def normalise(data, mid=None, sigma=None):
     # if no norm attributes are provided, they are calculated based on the inputted list
@@ -221,18 +222,3 @@ def get_norm_attributes(data):
     mid = (np.max(data) + np.min(data)) / 2  # finds the midpoint of the data
     sigma = (np.max(data) - np.min(data)) / 2  # calculates the spread of the data (range / 2)
     return mid, sigma
-
-
-# manipulates a data list to match with the scale of another data list (same midpoint and spread)
-def match_scale(reference_data, data_to_scale):
-    [mid_r, sigma_r] = get_norm_attributes(reference_data)  # midpoint and spread of data list to scale to
-    return denormalise(normalise(data_to_scale), mid_r, sigma_r)
-
-
-def scale(data, scalar):
-    midpoint = (np.max(data) + np.min(data)) / 2  # finds the midpoint of the data
-    return ((data - midpoint) * scalar) + midpoint
-
-
-def offset(data, offset_value):
-    return np.add(data, offset_value)

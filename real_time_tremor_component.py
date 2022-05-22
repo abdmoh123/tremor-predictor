@@ -141,7 +141,7 @@ def train_model(motion_buffer, label_buffer, model_type):
     start_time = datetime.now()
 
     # calculates the features in a separate function
-    features = fh.gen_tremor_features(motion_buffer.normalise())
+    features = fh.gen_tremor_feature(motion_buffer.normalise())
     # gets the tremor component
     tremor = np.subtract(motion_buffer.content, label_buffer.content)
     [mid, sigma] = motion_buffer.get_norm_attributes()
@@ -187,7 +187,7 @@ def predict_outputs(motion, regression, norm_attributes, prediction_start, buffe
             motion_buffer.add(motion[i - j + 1])
 
         # generates features out of the data in the buffer
-        features = np.vstack(fh.gen_tremor_features(motion_buffer.normalise(midpoint, sigma))).T
+        features = np.vstack(fh.gen_tremor_feature(motion_buffer.normalise(midpoint, sigma))).T
         # predicts the tremor component and denormalises it to the correct scale
         predicted_tremor = fh.denormalise(regression.predict(features), midpoint, sigma)
         prediction = np.subtract(motion_buffer.content, predicted_tremor)  # gets the voluntary motion
@@ -356,7 +356,7 @@ def evaluate_model(times, data, hyperparameters, start_index, total_predictions,
 
 
 if __name__ == '__main__':
-    model = "SVM"
-    # model = "Random Forest"
+    # model = "SVM"
+    model = "Random Forest"
 
     start_predictor("./data/real_tremor_data.csv", model)
